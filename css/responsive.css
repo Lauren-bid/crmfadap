@@ -1,0 +1,167 @@
+/* css/responsive.css */
+
+/* Large Desktop */
+@media (max-width: 1400px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Tablet / Small Desktop */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-item {
+    width: 100%;
+  }
+}
+
+/* Mobile & Tablet Portrait */
+@media (max-width: 768px) {
+  .app-layout {
+    position: relative;
+  }
+
+  /* Sidebar transforms into an off-canvas drawer */
+  .sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-xl);
+    width: 260px !important;
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-toggle {
+    display: none;
+  }
+
+  /* Show hamburger menu in topbar */
+  .hamburger {
+    display: flex;
+  }
+
+  .main-content {
+    width: 100vw;
+  }
+  
+  .topbar {
+    padding: 0 var(--spacing-4);
+  }
+  
+  .topbar-search {
+    width: 200px;
+  }
+  
+  .breadcrumb {
+    display: none;
+  }
+  
+  .page-container {
+    padding: var(--spacing-4);
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-4);
+  }
+  
+  .page-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .modal {
+    width: calc(100% - 32px);
+    margin: var(--spacing-4);
+    max-height: calc(100vh - 32px);
+  }
+  
+  /* Tables horizontally scrollable */
+  .table-container {
+    border-radius: var(--radius-md);
+  }
+  
+  .toast-container {
+    top: auto;
+    bottom: var(--spacing-4);
+    left: var(--spacing-4);
+    right: var(--spacing-4);
+  }
+  
+  .toast {
+    min-width: 0;
+    width: 100%;
+  }
+  
+  .kanban-board {
+    min-height: calc(100vh - 250px);
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .topbar-search {
+    display: none; /* Hide search input on very small screens, maybe show icon to toggle later */
+  }
+  
+  .btn span {
+    display: none; /* Hide text on buttons if they have icons */
+  }
+  
+  .btn-icon span {
+    display: none;
+  }
+  
+  /* Keep text on important buttons */
+  .page-actions .btn span,
+  .modal-footer .btn span,
+  .form-group .btn span {
+    display: inline;
+  }
+  
+  .kpi-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .kpi-details {
+    align-items: center;
+  }
+  
+  .tabs {
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+  }
+  
+  .tab {
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: 0.8125rem;
+  }
+}

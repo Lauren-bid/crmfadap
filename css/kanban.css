@@ -1,0 +1,162 @@
+/* css/kanban.css */
+
+.kanban-board {
+  display: flex;
+  gap: var(--spacing-4);
+  overflow-x: auto;
+  padding-bottom: var(--spacing-6);
+  min-height: calc(100vh - 200px);
+  align-items: flex-start;
+  scroll-snap-type: x mandatory;
+}
+
+.kanban-column {
+  min-width: 300px;
+  max-width: 320px;
+  flex-shrink: 0;
+  background-color: var(--bg-main);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: calc(100vh - 220px);
+  scroll-snap-align: start;
+  border: 1px solid var(--border-light);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.kanban-column.drag-over {
+  background-color: var(--bg-surface-hover);
+  border: 2px dashed var(--primary);
+}
+
+.kanban-column-header {
+  padding: var(--spacing-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+}
+
+.kanban-column-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.kanban-column-count {
+  background-color: var(--border-light);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+
+/* Stage Colors - Top Border */
+.kanban-column[data-stage="Novo Lead"] .kanban-column-header { border-bottom-color: #3B82F6; }
+.kanban-column[data-stage="Primeiro Contato"] .kanban-column-header { border-bottom-color: #F59E0B; }
+.kanban-column[data-stage="Em Negociação"] .kanban-column-header { border-bottom-color: var(--primary); }
+.kanban-column[data-stage="Visitou a Instituição"] .kanban-column-header { border-bottom-color: #8B5CF6; }
+.kanban-column[data-stage="Inscrito"] .kanban-column-header { border-bottom-color: #06B6D4; }
+.kanban-column[data-stage="Aprovado"] .kanban-column-header { border-bottom-color: #10B981; }
+.kanban-column[data-stage="Matriculado"] .kanban-column-header { border-bottom-color: #059669; }
+.kanban-column[data-stage="Perdido"] .kanban-column-header { border-bottom-color: #EF4444; }
+
+.kanban-column-body {
+  flex-grow: 1;
+  padding: var(--spacing-3);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  min-height: 100px;
+}
+
+.kanban-card {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3) var(--spacing-4);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  border-left: 3px solid transparent;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  position: relative;
+}
+
+.kanban-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.kanban-card:active {
+  cursor: grabbing;
+}
+
+.kanban-card.dragging {
+  opacity: 0.5;
+  transform: rotate(3deg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Card Colors matching stages */
+.kanban-column[data-stage="Novo Lead"] .kanban-card { border-left-color: #3B82F6; }
+.kanban-column[data-stage="Primeiro Contato"] .kanban-card { border-left-color: #F59E0B; }
+.kanban-column[data-stage="Em Negociação"] .kanban-card { border-left-color: var(--primary); }
+.kanban-column[data-stage="Visitou a Instituição"] .kanban-card { border-left-color: #8B5CF6; }
+.kanban-column[data-stage="Inscrito"] .kanban-card { border-left-color: #06B6D4; }
+.kanban-column[data-stage="Aprovado"] .kanban-card { border-left-color: #10B981; }
+.kanban-column[data-stage="Matriculado"] .kanban-card { border-left-color: #059669; }
+.kanban-column[data-stage="Perdido"] .kanban-card { border-left-color: #EF4444; }
+
+.kanban-card-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-1);
+}
+
+.kanban-card-course {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: var(--spacing-2);
+}
+
+.kanban-card-course svg {
+  width: 12px;
+  height: 12px;
+}
+
+.kanban-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-2);
+  border-top: 1px dashed var(--border-light);
+}
+
+.kanban-card-date {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kanban-card-date svg {
+  width: 10px;
+  height: 10px;
+}
+
+.kanban-card-avatar {
+  width: 20px;
+  height: 20px;
+  font-size: 0.625rem;
+}

@@ -1,0 +1,276 @@
+/* css/dashboard.css */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+}
+
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+  padding-top: var(--spacing-6);
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+}
+
+.kpi-content {
+  display: flex;
+  gap: var(--spacing-4);
+  align-items: flex-start;
+}
+
+.kpi-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-icon.primary { background-color: var(--primary-ultralight); color: var(--primary); }
+.kpi-icon.success { background-color: var(--success-light); color: var(--success); }
+.kpi-icon.warning { background-color: var(--warning-light); color: var(--warning); }
+.kpi-icon.info { background-color: var(--info-light); color: var(--info); }
+.kpi-icon.error { background-color: var(--error-light); color: var(--error); }
+
+.kpi-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-1);
+}
+
+.kpi-label {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.kpi-change {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: var(--spacing-2);
+}
+
+.kpi-change.up { color: var(--success); }
+.kpi-change.down { color: var(--error); }
+.kpi-change.neutral { color: var(--text-muted); }
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chart-container {
+  position: relative;
+  height: 300px;
+  width: 100%;
+  flex-grow: 1;
+}
+
+/* Funnel Chart HTML/CSS */
+.funnel-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4) 0;
+  height: 100%;
+  justify-content: center;
+}
+
+.funnel-stage {
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: width var(--transition-normal);
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.1);
+}
+
+/* Funnel Colors Gradient Scale */
+.funnel-stage[data-index="0"] { background-color: #3B82F6; } /* Novo Lead - Azul */
+.funnel-stage[data-index="1"] { background-color: #6366F1; } 
+.funnel-stage[data-index="2"] { background-color: #8B5CF6; } 
+.funnel-stage[data-index="3"] { background-color: #D946EF; } 
+.funnel-stage[data-index="4"] { background-color: #EC4899; } 
+.funnel-stage[data-index="5"] { background-color: #F43F5E; } 
+.funnel-stage[data-index="6"] { background-color: #10B981; } /* Aprovado/Matriculado - Verde */
+.funnel-stage[data-index="7"] { background-color: #EF4444; } /* Perdido - Vermelho */
+
+.funnel-label-inside {
+  z-index: 1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 var(--spacing-4);
+}
+
+/* Goals Section */
+.goals-section {
+  margin-bottom: var(--spacing-6);
+}
+
+.goals-card {
+  overflow: hidden;
+}
+
+.goals-toggle {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-main);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+
+.goals-tab {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: 'Inter', sans-serif;
+}
+
+.goals-tab.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 1px 3px rgba(155, 27, 48, 0.3);
+}
+
+.goals-tab:hover:not(.active) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.goals-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+  padding: var(--spacing-6);
+  background: linear-gradient(135deg, rgba(155, 27, 48, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.goals-big-number {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.goals-big-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.goals-big-percent {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.goals-remaining {
+  padding: 8px 16px;
+  background: var(--warning-light);
+  border-radius: var(--radius-md);
+  color: var(--warning);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.goals-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-4);
+  padding: var(--spacing-6);
+}
+
+.goal-item {
+  padding: var(--spacing-3);
+  background: var(--bg-main);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+}
+
+.goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-2);
+}
+
+.goal-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.goal-numbers {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.goal-bar {
+  height: 8px;
+  background: var(--border-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.goal-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--primary) 0%, #E84968 100%);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 2px;
+}
+
+.goal-fill.complete {
+  background: linear-gradient(90deg, var(--success) 0%, #34D399 100%);
+}
+
+.goal-fill.warning {
+  background: linear-gradient(90deg, var(--warning) 0%, #FBBF24 100%);
+}
