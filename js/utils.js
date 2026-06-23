@@ -24,8 +24,8 @@ window.Utils = (function() {
   const COURSES = [...COURSES_PRESENCIAL, ...COURSES_EAD, 'Pós-graduação', '(Outro Curso)', 'Não Preencheu'];
 
   const ORIGINS = [
-    'Agência', 'Whatsapp', 'Site', 'Indicação', 'Presencial',
-    'Ligação no fixo da instituição', 'Lead Antigo', 'Ação externa',
+    'Tráfego Pago', 'WhatsApp', 'Site', 'Indicação', 'Presencial',
+    'Fixo Instituição', 'Lead Antigo', 'Ação Externa',
     'Ação Comercial', 'VENDA DIRETA', 'Outros'
   ];
 
@@ -88,19 +88,19 @@ window.Utils = (function() {
   // Enrollment actuals from report
   const ENROLLMENT_ACTUALS = {
     presencial: {
-      total: 28,
+      total: 29,
       courses: {
-        'Direito': 9, 'Biomedicina': 4, 'Administração': 4, 'Farmácia': 3,
-        'Terapia Ocupacional': 2, 'Fisioterapia': 2, 'Enfermagem': 2,
-        'Psicologia': 1, 'Estética e Cosmética': 1
+        'Direito': 9, 'Administração': 4, 'Biomedicina': 4, 'Farmácia': 3,
+        'Terapia Ocupacional': 3, 'Enfermagem': 2, 'Fisioterapia': 2,
+        'Estética e Cosmética': 1, 'Psicologia': 1
       }
     },
     ead: {
-      total: 11,
+      total: 67,
       courses: {
-        'Análise e Desenvolvimento de Sistemas': 3, 'Gestão da Produção Industrial': 2,
-        'Engenharia da Computação': 2, 'Teologia': 1, 'Secretariado': 1,
-        'Pedagogia': 1, 'Educação Física (Lic.)': 1
+        'Análise e Desenvolvimento de Sistemas': 6, 'Ciências Contábeis': 4, 
+        'Gestão da Produção Industrial': 2, 'Gestão Comercial': 1, 
+        'Gestão de RH': 1
       }
     }
   };

@@ -44,6 +44,11 @@ window.App = (function() {
 
     // Listen to global search
     on('global_search', (query) => {
+      if (currentRoute === 'kanban') {
+        // Let KanbanPage handle the search directly
+        return;
+      }
+      
       if (!currentRoute.startsWith('leads')) {
         navigate('leads');
       }
@@ -62,8 +67,15 @@ window.App = (function() {
 
   function renderLoginScreen() {
     const html = `
-      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background-color: #9B1B30; padding: 20px; font-family: 'Inter', sans-serif;">
-        <div class="card" style="max-width: 440px; width: 100%; text-align: center; border-radius: 16px; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+      <div id="login-container" style="position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; font-family: 'Inter', sans-serif;">
+        <!-- Animated Background Orbs -->
+        <div class="login-bg-container">
+          <div class="bg-orb bg-orb-1" data-speed="0.04"></div>
+          <div class="bg-orb bg-orb-2" data-speed="-0.02"></div>
+          <div class="bg-orb bg-orb-3" data-speed="1"></div>
+        </div>
+
+        <div class="card" style="position: relative; z-index: 10; max-width: 440px; width: 100%; text-align: center; border-radius: 16px; padding: 40px; box-shadow: 0 15px 50px rgba(0,0,0,0.4); background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
           
           <div style="margin-bottom: 32px;">
             <div style="width: 80px; height: 80px; background-color: #f8f9fa; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #9B1B30;">
@@ -106,9 +118,118 @@ window.App = (function() {
           </form>
 
         </div>
+      <div style="position: absolute; bottom: 20px; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.7); font-size: 0.75rem; z-index: 10;">
+        &copy; ${new Date().getFullYear()} UNIFADAP. Todos os direitos reservados.
+      </div>
       </div>
     `;
+    
     document.getElementById('app').innerHTML = html;
+
+    // Premium Orb Mouse Tracking Animation & Particles
+    const loginContainer = document.getElementById('login-container');
+    const orbs = document.querySelectorAll('.bg-orb');
+    
+    if (loginContainer) {
+      let mouseX = window.innerWidth / 2;
+      let mouseY = window.innerHeight / 2;
+
+      // Mouse move listener
+      loginContainer.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+      });
+
+      // Generate particles
+      const bgContainer = loginContainer.querySelector('.login-bg-container');
+      const particles = [];
+      const numParticles = 120; // Increased amount of particles
+      const colors = ['red', 'pink', 'purple', 'cyan', 'gold', 'white', 'white', 'white']; // More white for balance
+      
+      if (bgContainer) {
+        for (let i = 0; i < numParticles; i++) {
+          const p = document.createElement('div');
+          p.className = 'bg-particle';
+          // Assign random color
+          const color = colors[Math.floor(Math.random() * colors.length)];
+          p.setAttribute('data-color', color);
+
+          const size = Math.random() * 3.5 + 1.5; // 1.5px to 5px
+          p.style.width = `${size}px`;
+          p.style.height = `${size}px`;
+          p.style.opacity = Math.random() * 0.7 + 0.3; // 0.3 to 1.0 opacity
+          
+          const startX = Math.random() * window.innerWidth;
+          const startY = Math.random() * window.innerHeight;
+          
+          bgContainer.appendChild(p);
+          
+          particles.push({
+            el: p,
+            baseX: startX,
+            baseY: startY,
+            driftX: (Math.random() - 0.5) * 0.3, // slow horizontal drift
+            driftY: -Math.random() * 0.4 - 0.1,  // continuous slow drift upwards
+            parallaxSpeed: Math.random() * 0.03 + 0.01
+          });
+        }
+      }
+
+      // Animation loop for smooth trailing effect
+      let currentX = window.innerWidth / 2;
+      let currentY = window.innerHeight / 2;
+      
+      function animateOrbs() {
+        if (document.getElementById('login-container')) { // Only run if login screen is active
+          // Lerp for smooth trailing
+          currentX += (mouseX - currentX) * 0.08;
+          currentY += (mouseY - currentY) * 0.08;
+
+          // Parallax calculation relative to center
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          const deltaX = currentX - centerX;
+          const deltaY = currentY - centerY;
+
+          orbs.forEach(orb => {
+            const speed = parseFloat(orb.getAttribute('data-speed'));
+            if (speed === 1) {
+              // Exact follower (Orb 3)
+              orb.style.left = `${currentX}px`;
+              orb.style.top = `${currentY}px`;
+            } else {
+              // Parallax elements (Orbs 1 & 2)
+              const moveX = deltaX * speed;
+              const moveY = deltaY * speed;
+              orb.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            }
+          });
+
+          // Animate Particles
+          particles.forEach(p => {
+             // Continuous drift
+             p.baseX += p.driftX;
+             p.baseY += p.driftY;
+             
+             // Wrap around screen edges smoothly
+             if (p.baseY < -20) p.baseY = window.innerHeight + 20;
+             if (p.baseX < -20) p.baseX = window.innerWidth + 20;
+             if (p.baseX > window.innerWidth + 20) p.baseX = -20;
+
+             // Parallax from mouse
+             const moveX = deltaX * p.parallaxSpeed;
+             const moveY = deltaY * p.parallaxSpeed;
+             
+             p.el.style.transform = `translate(${p.baseX + moveX}px, ${p.baseY + moveY}px)`;
+          });
+
+          requestAnimationFrame(animateOrbs);
+        }
+      }
+      
+      // Start loop
+      requestAnimationFrame(animateOrbs);
+    }
 
     document.getElementById('login-form').addEventListener('submit', function(e) {
       e.preventDefault();

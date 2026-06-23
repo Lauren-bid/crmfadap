@@ -26,7 +26,7 @@ async function downloadAndParse() {
       name: headers.findIndex(h => h && h.includes('nome')),
       phone: headers.findIndex(h => h && (h.includes('telefone') || h.includes('celular') || h.includes('whatsapp') || h.includes('contato') || h.includes('número') || h.includes('numero'))),
       city: headers.findIndex(h => h && h.includes('cidade')),
-      origin: headers.findIndex(h => h && (h.includes('origem') || h.includes('canal'))),
+      origin: 4, // Coluna E = índice 4 (fixo, conforme planilha da Ana Lauren)
       statusSheet: headers.findIndex(h => h && (h === 'status' || h.includes('status do lead') || h.includes('etapa do funil'))),
       course: headers.findIndex(h => h && h.includes('curso')),
       attendant: headers.findIndex(h => h && (h.includes('atendente') || h.includes('responsável'))),
@@ -38,6 +38,7 @@ async function downloadAndParse() {
     };
 
     console.log('Mapping for', sheetName, map);
+    console.log('Header at col E:', headers[4]);
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
@@ -47,7 +48,24 @@ async function downloadAndParse() {
         name: row[map.name] ? String(row[map.name]).trim() : '',
         phone: map.phone !== -1 && row[map.phone] ? String(row[map.phone]).trim() : '',
         city: map.city !== -1 && row[map.city] ? String(row[map.city]).trim() : '',
-        origin: map.origin !== -1 && row[map.origin] ? String(row[map.origin]).trim() : 'Outros',
+        origin: (function() {
+          if (map.origin === -1 || !row[map.origin]) return 'Outros';
+          const raw = String(row[map.origin]).trim();
+          const rawLower = raw.toLowerCase();
+          
+          if (rawLower === 'agência' || rawLower === 'agencia' || rawLower.includes('tráfego')) return 'Tráfego Pago';
+          if (rawLower === 'whatsapp') return 'WhatsApp';
+          if (rawLower === 'site') return 'Site';
+          if (rawLower === 'indicação' || rawLower === 'indicacao') return 'Indicação';
+          if (rawLower === 'presencial') return 'Presencial';
+          if (rawLower.includes('fixo')) return 'Fixo Instituição';
+          if (rawLower === 'lead antigo') return 'Lead Antigo';
+          if (rawLower.startsWith('ação externa') || rawLower.startsWith('ação de')) return 'Ação Externa';
+          if (rawLower.startsWith('ação comercial')) return 'Ação Comercial';
+          if (rawLower === 'venda direta') return 'VENDA DIRETA';
+          
+          return raw || 'Outros';
+        })(),
         course: map.course !== -1 && row[map.course] ? String(row[map.course]).trim() : '',
         attendant: map.attendant !== -1 && row[map.attendant] ? String(row[map.attendant]).trim() : '',
         date: map.date !== -1 && row[map.date] ? String(row[map.date]).trim() : '',
@@ -139,7 +157,20 @@ window.SeedData = (function() {
         cpf: '',
         city: data.city || '',
         state: 'SP',
-        origin: Utils.ORIGINS.find(o => o.toLowerCase() === String(data.origin).toLowerCase()) || 'Outros',
+        origin: (function() {
+          const raw = String(data.origin || '').trim();
+          // Direct match first
+          const directMatch = Utils.ORIGINS.find(o => o.toLowerCase() === raw.toLowerCase());
+          if (directMatch) return directMatch;
+          // Group 'Ação externa #...' into 'Ação externa'
+          if (raw.toLowerCase().startsWith('ação externa')) return 'Ação externa';
+          // Group 'Ação Comercial...' into 'Ação Comercial'
+          if (raw.toLowerCase().startsWith('ação comercial')) return 'Ação Comercial';
+          // Group 'Ação de Panfletagem...' into 'Ação externa'
+          if (raw.toLowerCase().startsWith('ação de')) return 'Ação externa';
+          // Fallback
+          return raw || 'Outros';
+        })(),
         course: Utils.COURSES.find(c => c.toLowerCase() === String(data.course).toLowerCase()) || data.course || 'Não Preencheu',
         modality: data.modality,
         semester: data.modality === 'EAD' ? '2026/1' : '2026/2',

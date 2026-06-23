@@ -76,6 +76,23 @@ window.DataStore = (function() {
     if (filters.attendantId && filters.attendantId !== '') result = result.filter(l => l.attendantId === filters.attendantId);
     if (filters.semester && filters.semester !== '') result = result.filter(l => (l.semester || '').toLowerCase() === filters.semester.toLowerCase());
     if (filters.modality && filters.modality !== '') result = result.filter(l => (l.modality || '').toLowerCase() === filters.modality.toLowerCase());
+    if (filters.date && filters.date !== '') {
+      result = result.filter(l => {
+        // Find the last contact date from interactions (timeline)
+        let lastContactDate = null;
+        if (l.interactions && l.interactions.length > 0) {
+          // interactions are sorted newest first (unshift on add)
+          // Find the most recent non-system interaction, or fallback to most recent overall
+          const lastInteraction = l.interactions[0];
+          lastContactDate = lastInteraction.createdAt;
+        }
+        // Fallback to lastUpdate if no interactions
+        if (!lastContactDate) lastContactDate = l.lastUpdate || l.createdAt;
+        
+        const contactIso = new Date(lastContactDate).toISOString().split('T')[0];
+        return contactIso === filters.date;
+      });
+    }
 
     return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }

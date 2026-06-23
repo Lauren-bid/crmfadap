@@ -1,6 +1,7 @@
 // js/pages/kanban.js
 
 window.KanbanPage = (function() {
+  let currentSearchQuery = '';
 
   function render() {
     const currentUser = DataStore.getCurrentUser();
@@ -27,6 +28,7 @@ window.KanbanPage = (function() {
               <option value="">Todos os Atendentes</option>
               ${DataStore.getUsers().filter(u => u.role !== 'Secretaria').map(u => `<option value="${u.id}">${u.name}</option>`).join('')}
             </select>
+            <input type="date" class="form-select" id="kanban-filter-date" style="width: auto; padding: 0.5rem;" title="Filtrar por último contato (observação na linha do tempo)">
           </div>
         </div>
 
@@ -290,12 +292,22 @@ window.KanbanPage = (function() {
   function init() {
     renderBoard();
 
-    // Setup filter listeners
     const courseFilter = document.getElementById('kanban-filter-course');
     const attendantFilter = document.getElementById('kanban-filter-attendant');
-    
+    const dateFilter = document.getElementById('kanban-filter-date');
+
+    function applyFilters() {
+      const filters = {};
+      if (courseFilter && courseFilter.value) filters.course = courseFilter.value;
+      if (attendantFilter && attendantFilter.value) filters.attendantId = attendantFilter.value;
+      if (dateFilter && dateFilter.value) filters.date = dateFilter.value;
+      if (currentSearchQuery) filters.query = currentSearchQuery;
+      renderBoard(filters);
+    }
+
     if (courseFilter) courseFilter.addEventListener('change', applyFilters);
     if (attendantFilter) attendantFilter.addEventListener('change', applyFilters);
+    if (dateFilter) dateFilter.addEventListener('change', applyFilters);
 
     // Setup config button
     const configBtn = document.getElementById('btn-config-stages');
@@ -303,6 +315,28 @@ window.KanbanPage = (function() {
       configBtn.addEventListener('click', openConfigModal);
     }
   }
+
+  // Register global search listener once
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.App) {
+      window.App.on('global_search', (query) => {
+        if (window.App.getCurrentRoute() === 'kanban') {
+          currentSearchQuery = query;
+          // Trigger a re-render by finding the filters and applying them
+          const courseFilter = document.getElementById('kanban-filter-course');
+          const attendantFilter = document.getElementById('kanban-filter-attendant');
+          const dateFilter = document.getElementById('kanban-filter-date');
+          
+          const filters = { query: currentSearchQuery };
+          if (courseFilter && courseFilter.value) filters.course = courseFilter.value;
+          if (attendantFilter && attendantFilter.value) filters.attendantId = attendantFilter.value;
+          if (dateFilter && dateFilter.value) filters.date = dateFilter.value;
+          
+          renderBoard(filters);
+        }
+      });
+    }
+  });
 
   return {
     render,

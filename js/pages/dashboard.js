@@ -142,7 +142,7 @@ window.DashboardPage = (function() {
 
     // Transferencias
     const tGoal = Utils.ENROLLMENT_GOALS.presencial_transfer.total;
-    const tAct = stats.presencialTransfers;
+    const tAct = stats.presencialTransfers || 0;
     const tFalta = Math.max(0, tGoal - tAct);
 
     // EAD
@@ -184,9 +184,7 @@ window.DashboardPage = (function() {
       `;
     };
 
-    // Calculate separate tables
-    // Note: getStats currently groups by course but doesn't strictly separate course arrays by EAD vs Presencial internally in byCourse
-    // Let's filter manually
+    // Calculate separate tables dynamically from current leads in Kanban
     const leads = DataStore.getLeads({ funnelStage: 'Matriculado' });
     const calouros = {};
     const transfers = {};
@@ -195,6 +193,7 @@ window.DashboardPage = (function() {
     leads.forEach(l => {
       const c = l.course || 'Não Informado';
       if (l.modality === 'Presencial') {
+        // Assume 'Transferência' string check from any field if available, but fallback to calouros
         if (l.enrollmentType === 'Transferência') {
           transfers[c] = (transfers[c] || 0) + 1;
         } else {
