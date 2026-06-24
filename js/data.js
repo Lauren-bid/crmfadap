@@ -6,6 +6,7 @@ window.DataStore = (function() {
     leads: [],
     users: [],
     funnelStages: null,
+    semesters: null,
     currentUserId: null
   };
 
@@ -39,6 +40,22 @@ window.DataStore = (function() {
           _data.funnelStages = [...Utils.FUNNEL_STAGES];
           save();
         }
+
+        // Ensure semesters exists
+        if (!_data.semesters || !Array.isArray(_data.semesters)) {
+          _data.semesters = [...Utils.SEMESTERS];
+          save();
+        }
+
+        // Migrate attendantId to attendantIds array
+        let needsSave = false;
+        _data.leads.forEach(l => {
+          if (!l.attendantIds) {
+            l.attendantIds = l.attendantId ? [l.attendantId] : [];
+            needsSave = true;
+          }
+        });
+        if (needsSave) save();
       } catch (e) {
         console.error('Error parsing localStorage data', e);
         _data = SeedData.generate();
@@ -52,7 +69,15 @@ window.DataStore = (function() {
   }
 
   function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(_data));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(_data));
+    } catch (e) {
+      if (e.name === 'QuotaExceededError' || e.message.includes('quota')) {
+        alert('ERRO CRÍTICO: O armazenamento do navegador está cheio! Exporte seus dados imediatamente ou libere espaço no navegador, caso contrário, novos leads não serão salvos.');
+      } else {
+        console.error('Erro ao salvar os dados:', e);
+      }
+    }
   }
 
   // --- Leads CRUD ---
@@ -73,7 +98,7 @@ window.DataStore = (function() {
     if (filters.origin && filters.origin !== '') result = result.filter(l => (l.origin || '').toLowerCase() === filters.origin.toLowerCase());
     if (filters.course && filters.course !== '') result = result.filter(l => (l.course || '').toLowerCase() === filters.course.toLowerCase());
     if (filters.funnelStage && filters.funnelStage !== '') result = result.filter(l => (l.funnelStage || '').toLowerCase() === filters.funnelStage.toLowerCase());
-    if (filters.attendantId && filters.attendantId !== '') result = result.filter(l => l.attendantId === filters.attendantId);
+    if (filters.attendantId && filters.attendantId !== '') result = result.filter(l => l.attendantIds && l.attendantIds.includes(filters.attendantId));
     if (filters.semester && filters.semester !== '') result = result.filter(l => (l.semester || '').toLowerCase() === filters.semester.toLowerCase());
     if (filters.modality && filters.modality !== '') result = result.filter(l => (l.modality || '').toLowerCase() === filters.modality.toLowerCase());
     if (filters.date && filters.date !== '') {
@@ -108,7 +133,8 @@ window.DataStore = (function() {
       id: Utils.generateId(),
       createdAt: now,
       lastUpdate: now,
-      assignedDate: data.attendantId ? now : '',
+      assignedDate: (data.attendantIds && data.attendantIds.length > 0) ? now : '',
+      attendantIds: data.attendantIds || [],
       interactions: [],
       contracts: [],
       documents: [],
@@ -138,7 +164,21 @@ window.DataStore = (function() {
     
     // Check for changes and add to changelog
     for (const key in data) {
-      if (data[key] !== lead[key] && key !== 'id' && key !== 'interactions' && key !== 'contracts' && key !== 'documents' && key !== 'changelog' && key !== 'lastUpdate') {
+      if (key === 'attendantIds') {
+        const oldIds = lead.attendantIds || [];
+        const newIds = data.attendantIds || [];
+        if (oldIds.join(',') !== newIds.join(',')) {
+          lead.changelog.push({
+            id: Utils.generateId(),
+            field: 'Atendentes',
+            oldValue: oldIds.map(id => { const u = getUser(id); return u ? u.name : id; }).join(', '),
+            newValue: newIds.map(id => { const u = getUser(id); return u ? u.name : id; }).join(', '),
+            userId: _data.currentUserId,
+            timestamp: now
+          });
+          data.assignedDate = now;
+        }
+      } else if (data[key] !== lead[key] && key !== 'id' && key !== 'interactions' && key !== 'contracts' && key !== 'documents' && key !== 'changelog' && key !== 'lastUpdate') {
         lead.changelog.push({
           id: Utils.generateId(),
           field: key,
@@ -148,10 +188,6 @@ window.DataStore = (function() {
           timestamp: now
         });
       }
-    }
-
-    if (data.attendantId && data.attendantId !== lead.attendantId) {
-      data.assignedDate = now;
     }
 
     _data.leads[leadIndex] = { ...lead, ...data, lastUpdate: now };
@@ -377,14 +413,16 @@ window.DataStore = (function() {
 
       if (stats.leadsByStage[lead.funnelStage] !== undefined) stats.leadsByStage[lead.funnelStage]++;
 
-      if (lead.attendantId) {
-        if (!stats.leadsByAttendant[lead.attendantId]) {
-          stats.leadsByAttendant[lead.attendantId] = { total: 0, enrolled: 0 };
-        }
-        stats.leadsByAttendant[lead.attendantId].total++;
-        if (lead.funnelStage === 'Matriculado') {
-          stats.leadsByAttendant[lead.attendantId].enrolled++;
-        }
+      if (lead.attendantIds && lead.attendantIds.length > 0) {
+        lead.attendantIds.forEach(attId => {
+          if (!stats.leadsByAttendant[attId]) {
+            stats.leadsByAttendant[attId] = { total: 0, enrolled: 0 };
+          }
+          stats.leadsByAttendant[attId].total++;
+          if (lead.funnelStage === 'Matriculado') {
+            stats.leadsByAttendant[attId].enrolled++;
+          }
+        });
       }
 
       // Monthly Evolution (Last 6 months)
@@ -556,6 +594,26 @@ window.DataStore = (function() {
     save();
   }
 
+  // --- Semesters CRUD ---
+
+  function getSemesters() {
+    return _data.semesters || [...Utils.SEMESTERS];
+  }
+
+  function addSemester(name) {
+    if (!_data.semesters) _data.semesters = [...Utils.SEMESTERS];
+    if (!_data.semesters.includes(name)) {
+      _data.semesters.push(name);
+      save();
+    }
+  }
+
+  function deleteSemester(name) {
+    if (!_data.semesters) _data.semesters = [...Utils.SEMESTERS];
+    _data.semesters = _data.semesters.filter(s => s !== name);
+    save();
+  }
+
   return {
     init,
     save,
@@ -588,6 +646,9 @@ window.DataStore = (function() {
     addFunnelStage,
     removeFunnelStage,
     renameFunnelStage,
-    reorderFunnelStages
+    reorderFunnelStages,
+    getSemesters,
+    addSemester,
+    deleteSemester
   };
 })();

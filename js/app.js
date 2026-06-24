@@ -365,6 +365,11 @@ window.App = (function() {
       setTimeout(() => ReportsPage.init(), 0);
       breadcrumbs = ['Sistema', 'Relatórios Comparativos'];
     }
+    else if (hash === 'commissions') {
+      pageContainer.innerHTML = CommissionsPage.render();
+      setTimeout(() => CommissionsPage.init(), 0);
+      breadcrumbs = ['Sistema', 'Relatório de Comissões'];
+    }
     else {
       // 404 fallback
       pageContainer.innerHTML = `<div class="empty-state"><h3>Página não encontrada</h3></div>`;

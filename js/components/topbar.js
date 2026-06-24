@@ -89,12 +89,16 @@ window.Topbar = (function() {
         userDropdown.classList.toggle('open');
       });
 
-      // Close when clicking outside
-      document.addEventListener('click', (e) => {
-        if (!userDropdown.contains(e.target)) {
-          userDropdown.classList.remove('open');
-        }
-      });
+      // Close when clicking outside - Singleton Event Listener
+      if (!window.__topbarClickListenerAdded) {
+        document.addEventListener('click', (e) => {
+          const ud = document.getElementById('user-dropdown');
+          if (ud && !ud.contains(e.target)) {
+            ud.classList.remove('open');
+          }
+        });
+        window.__topbarClickListenerAdded = true;
+      }
     }
 
     // Logout simulation

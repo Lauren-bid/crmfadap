@@ -154,12 +154,17 @@ window.DashboardPage = (function() {
     const renderTableHtml = (title, coursesObj, total) => {
       let rows = '';
       const sorted = Object.keys(coursesObj).sort((a,b) => coursesObj[b] - coursesObj[a]);
-      sorted.forEach(c => {
-        if(coursesObj[c] > 0) {
-          const pct = total > 0 ? ((coursesObj[c] / total) * 100).toFixed(2) + '%' : '0%';
-          rows += `<tr><td style="font-size: 0.8rem;">${c}</td><td style="text-align:center;">${coursesObj[c]}</td><td style="text-align:right;">${pct}</td></tr>`;
-        }
-      });
+      
+      if (sorted.length === 0 || total === 0) {
+        rows = '<tr><td colspan="3" style="text-align:center; padding: 20px; color: var(--text-muted); font-style: italic;">Nenhuma matrícula neste período</td></tr>';
+      } else {
+        sorted.forEach(c => {
+          if(coursesObj[c] > 0) {
+            const pct = total > 0 ? ((coursesObj[c] / total) * 100).toFixed(2) + '%' : '0%';
+            rows += `<tr><td style="font-size: 0.8rem;">${c}</td><td style="text-align:center;">${coursesObj[c]}</td><td style="text-align:right;">${pct}</td></tr>`;
+          }
+        });
+      }
       return `
         <div class="card" style="flex: 1; min-width: 280px;">
           <h4 style="margin-bottom: 12px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">${title}</h4>

@@ -31,8 +31,8 @@ window.DataTable = (function() {
       </th>`;
     });
 
-    if (config.actions && config.actions.length > 0) {
-      theadHtml += `<th style="width: 120px; text-align: right;">Ações</th>`;
+    if ((config.actions && config.actions.length > 0) || config.renderActions) {
+      theadHtml += `<th style="width: 140px; text-align: right;">Ações</th>`;
     }
     theadHtml += '</tr>';
 
@@ -54,10 +54,10 @@ window.DataTable = (function() {
         tbodyHtml += `<td>${cellValue}</td>`;
       });
 
-      if (config.actions && config.actions.length > 0) {
+      if ((config.actions && config.actions.length > 0) || config.renderActions) {
         tbodyHtml += `<td style="text-align: right;">
-          <div class="flex justify-end gap-2">
-            ${config.actions.map(action => `
+          <div class="flex justify-end gap-1" style="align-items: center;">
+            ${config.renderActions ? config.renderActions(row) : config.actions.map(action => `
               <button class="btn-icon btn-ghost ${action.onClickClass}" data-id="${row.id}" title="${action.title}">
                 <i data-lucide="${action.icon}"></i>
               </button>

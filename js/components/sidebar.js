@@ -51,6 +51,10 @@ window.Sidebar = (function() {
             <i data-lucide="bar-chart-4"></i>
             <span>Relatórios</span>
           </a>
+          <a href="#/commissions" class="sidebar-nav-item" data-route="commissions">
+            <i data-lucide="dollar-sign"></i>
+            <span>Comissões</span>
+          </a>
         </nav>
 
         <div class="sidebar-footer">

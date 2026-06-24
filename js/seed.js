@@ -90,7 +90,7 @@ window.SeedData = (function() {
         funnelStage: getFunnelStage(data.statusSheet),
         enrollmentType: (String(data.statusSheet).toUpperCase().trim() === 'TRANSFERÊNCIA') ? 'Transferência' : 'Calouro',
         academicStatus: 'Interessado',
-        attendantId: getAttendantId(data.attendant),
+        attendantIds: [getAttendantId(data.attendant)].filter(Boolean),
         status1: data.status1 || '',
         status2: data.status2 || '',
         observation: data.obs || '',

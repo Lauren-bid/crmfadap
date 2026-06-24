@@ -11,6 +11,9 @@ window.LeadsPage = (function() {
             <p>Lista completa de candidatos</p>
           </div>
           <div class="page-actions">
+            <button class="btn btn-secondary" onclick="window.LeadsPage.openManageSemestersModal()">
+              <i data-lucide="calendar"></i> Gerenciar Semestres
+            </button>
             <button class="btn btn-primary" onclick="window.LeadsPage.openNewLeadModal()">
               <i data-lucide="plus"></i> Novo Lead
             </button>
@@ -19,6 +22,7 @@ window.LeadsPage = (function() {
 
         <div id="leads-filters-container"></div>
         <div id="leads-table-container"></div>
+        <div id="leads-count-container" style="margin-top: 24px; font-weight: 500; color: var(--text-secondary); background: var(--bg-color); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light); text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);"></div>
       </div>
     `;
   }
@@ -31,7 +35,8 @@ window.LeadsPage = (function() {
         { key: 'funnelStage', label: 'Fase do Funil', type: 'select', options: DataStore.getFunnelStages() },
         { key: 'course', label: 'Curso', type: 'select', options: Utils.COURSES },
         { key: 'origin', label: 'Origem', type: 'select', options: Utils.ORIGINS },
-        { key: 'modality', label: 'Modalidade', type: 'select', options: Utils.MODALITIES }
+        { key: 'modality', label: 'Modalidade', type: 'select', options: Utils.MODALITIES },
+        { key: 'semester', label: 'Semestre', type: 'select', options: DataStore.getSemesters() }
       ]
     };
 
@@ -89,15 +94,16 @@ window.LeadsPage = (function() {
           }
         },
         { 
-          key: 'attendantId', label: 'Atendente',
+          key: 'attendantIds', label: 'Atendentes',
           render: (val) => {
-            if (!val) return '<span class="text-muted text-sm">Não atribuído</span>';
-            const user = DataStore.getUser(val);
-            if (!user) return '-';
+            if (!val || val.length === 0) return '<span class="text-muted text-sm">Não atribuído</span>';
+            const users = val.map(id => DataStore.getUser(id)).filter(Boolean);
+            if (users.length === 0) return '-';
             return `
-              <div class="flex items-center gap-2">
-                <div class="avatar avatar-sm" style="font-size: 0.6rem;">${user.avatar}</div>
-                <span class="text-sm">${user.name}</span>
+              <div class="flex items-center gap-1 flex-wrap">
+                ${users.map(user => `
+                  <div class="avatar avatar-sm" style="font-size: 0.6rem; width: 24px; height: 24px;" title="${user.name}">${user.avatar}</div>
+                `).join('')}
               </div>
             `;
           }
@@ -122,10 +128,43 @@ window.LeadsPage = (function() {
       actions: [
         { icon: 'eye', title: 'Ver Detalhes', onClickClass: 'action-view' },
         { icon: 'trash-2', title: 'Excluir', onClickClass: 'action-delete text-error' }
-      ]
+      ],
+      renderActions: (row) => {
+        const phone = (row.whatsapp || row.phone || '').replace(/\D/g, '');
+        const waLink = phone ? `<a href="https://wa.me/55${phone}" target="_blank" rel="noopener noreferrer"
+          class="btn-icon" style="color: #25D366; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:6px; transition:background 0.2s;" title="Abrir WhatsApp"
+          onmouseover="this.style.background='rgba(37,211,102,0.1)'" onmouseout="this.style.background='transparent'">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        </a>` : '';
+        return `
+          ${waLink}
+          <button class="btn-icon btn-ghost action-view" data-id="${row.id}" title="Ver Detalhes"><i data-lucide="eye"></i></button>
+          <button class="btn-icon btn-ghost text-error action-delete" data-id="${row.id}" title="Excluir"><i data-lucide="trash-2"></i></button>
+        `;
+      }
     };
 
     tableContainer.innerHTML = DataTable.render(tableConfig);
+    
+    // Update count container
+    const countContainer = document.getElementById('leads-count-container');
+    if (countContainer) {
+      let filterText = [];
+      if (filters && filters.query) filterText.push(`Busca: "${filters.query}"`);
+      if (filters && filters.funnelStage) filterText.push(`Fase: ${filters.funnelStage}`);
+      if (filters && filters.course) filterText.push(`Curso: ${filters.course}`);
+      if (filters && filters.origin) filterText.push(`Origem: ${filters.origin}`);
+      if (filters && filters.modality) filterText.push(`Modalidade: ${filters.modality}`);
+      if (filters && filters.semester) filterText.push(`Semestre: ${filters.semester}`);
+      if (filters && filters.date) filterText.push(`Data: ${Utils.formatDate(filters.date)}`);
+      
+      let filterString = filterText.length > 0 ? `<strong>Filtros ativos:</strong> ${filterText.join(' | ')}` : 'Exibindo todos os leads (Sem filtros)';
+      
+      countContainer.innerHTML = `
+        <div style="font-size: 0.85rem; margin-bottom: 6px;">${filterString}</div>
+        <div style="font-size: 1.1rem;">Quantidade de leads: <strong style="color: var(--primary); font-size: 1.3rem;">${leads.length}</strong></div>
+      `;
+    }
     
     if (window.lucide) window.lucide.createIcons();
 
@@ -214,11 +253,11 @@ window.LeadsPage = (function() {
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Atendente Responsável</label>
-            <select class="form-select" id="nl-attendant">
-              <option value="">Não atribuir agora</option>
+            <label class="form-label">Atendentes Responsáveis</label>
+            <select class="form-select" id="nl-attendant" multiple style="height: 80px;">
               ${attendants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}
             </select>
+            <small style="color: var(--text-muted); font-size: 0.75rem;">Segure Ctrl (ou Cmd) para selecionar múltiplos</small>
           </div>
         </div>
         
@@ -226,7 +265,7 @@ window.LeadsPage = (function() {
           <div class="form-group">
             <label class="form-label">Semestre de Entrada</label>
             <select class="form-select" id="nl-semester">
-              ${Utils.SEMESTERS.map(s => `<option value="${s}">${s}</option>`).join('')}
+              ${DataStore.getSemesters().map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
@@ -275,7 +314,7 @@ window.LeadsPage = (function() {
         course: document.getElementById('nl-course').value,
         modality: document.getElementById('nl-modality').value,
         semester: document.getElementById('nl-semester').value,
-        attendantId: document.getElementById('nl-attendant').value,
+        attendantIds: Array.from(document.getElementById('nl-attendant').selectedOptions).map(opt => opt.value),
         status1: document.getElementById('nl-status1').value,
         status2: document.getElementById('nl-status2').value,
         observation: document.getElementById('nl-observation').value,
@@ -293,10 +332,82 @@ window.LeadsPage = (function() {
     });
   }
 
+  function openManageSemestersModal() {
+    const semesters = DataStore.getSemesters();
+    
+    const html = `
+      <div style="margin-bottom: 20px;">
+        <label class="form-label">Adicionar Novo Semestre</label>
+        <div style="display: flex; gap: 10px;">
+          <input type="text" id="new-semester-input" class="form-input" placeholder="Ex: 2027/1">
+          <button class="btn btn-primary" onclick="window.LeadsPage.addSemester()">Adicionar</button>
+        </div>
+      </div>
+      
+      <div class="card" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border-light); background: var(--bg-secondary);">
+              <th style="padding: 12px; text-align: left; font-size: 0.8rem; text-transform: uppercase;">Semestre</th>
+              <th style="padding: 12px; text-align: right; font-size: 0.8rem; text-transform: uppercase;">Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${semesters.map(s => `
+              <tr style="border-bottom: 1px solid var(--border-light);">
+                <td style="padding: 12px; font-weight: 500;">${s}</td>
+                <td style="padding: 12px; text-align: right;">
+                  <button class="btn-icon btn-ghost text-error" onclick="window.LeadsPage.deleteSemester('${s}')" title="Excluir">
+                    <i data-lucide="trash-2"></i>
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+            ${semesters.length === 0 ? '<tr><td colspan="2" style="padding: 20px; text-align: center; color: var(--text-muted);">Nenhum semestre cadastrado.</td></tr>' : ''}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    Modal.show({
+      title: 'Gerenciar Semestres',
+      content: html,
+      footer: `<button class="btn btn-primary" onclick="Modal.hide()">Concluir</button>`
+    });
+  }
+
+  function addSemester() {
+    const input = document.getElementById('new-semester-input');
+    const val = input.value.trim();
+    if (!val) {
+      Toast.warning('Digite um nome para o semestre.');
+      return;
+    }
+    
+    DataStore.addSemester(val);
+    Toast.success('Semestre adicionado!');
+    openManageSemestersModal(); // refresh modal
+    
+    // Refresh table filters silently if we are on leads page
+    init();
+  }
+
+  function deleteSemester(name) {
+    Modal.confirm(`Tem certeza que deseja excluir o semestre "${name}"? Leads que já usam esse semestre não serão apagados.`, () => {
+      DataStore.deleteSemester(name);
+      Toast.success('Semestre removido!');
+      openManageSemestersModal(); // refresh modal
+      init(); // refresh background filters
+    });
+  }
+
   // Allow global access to open modal if needed
   return {
     render,
     init,
-    openNewLeadModal
+    openNewLeadModal,
+    openManageSemestersModal,
+    addSemester,
+    deleteSemester
   };
 })();

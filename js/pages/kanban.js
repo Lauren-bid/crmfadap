@@ -24,6 +24,10 @@ window.KanbanPage = (function() {
               <option value="">Todos os Cursos</option>
               ${Utils.COURSES.map(c => `<option value="${c}">${c}</option>`).join('')}
             </select>
+            <select class="form-select" id="kanban-filter-semester" style="width: auto;">
+              <option value="">Semestre</option>
+              ${DataStore.getSemesters().map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
             <select class="form-select" id="kanban-filter-attendant" style="width: auto;">
               <option value="">Todos os Atendentes</option>
               ${DataStore.getUsers().filter(u => u.role !== 'Secretaria').map(u => `<option value="${u.id}">${u.name}</option>`).join('')}
@@ -62,7 +66,7 @@ window.KanbanPage = (function() {
           </div>
           <div class="kanban-column-body" id="col-${stage.replace(/\s+/g, '-')}">
             ${stageLeads.map(lead => {
-              const attendant = DataStore.getUser(lead.attendantId);
+              const attendants = (lead.attendantIds || []).map(id => DataStore.getUser(id)).filter(Boolean);
               return `
                 <div class="kanban-card" draggable="true" data-id="${lead.id}">
                   <div class="kanban-card-name">${lead.name}</div>
@@ -74,7 +78,11 @@ window.KanbanPage = (function() {
                       <i data-lucide="clock"></i>
                       ${Utils.formatRelativeTime(lead.lastUpdate)}
                     </div>
-                    ${attendant ? `<div class="avatar kanban-card-avatar" title="${attendant.name}">${attendant.avatar}</div>` : ''}
+                    ${attendants.length > 0 ? `
+                      <div style="display: flex; gap: 2px;">
+                        ${attendants.map(att => `<div class="avatar kanban-card-avatar" title="${att.name}" style="width: 20px; height: 20px; font-size: 0.55rem; border: 1px solid white;">${att.avatar}</div>`).join('')}
+                      </div>
+                    ` : ''}
                   </div>
                 </div>
               `;
@@ -235,7 +243,7 @@ window.KanbanPage = (function() {
 
     Toast.success(`Fase "${name}" excluída!`);
     openConfigModal(); // refresh modal
-    applyFilters(); // refresh board behind
+    init(); // completely re-init board instead of applyFilters
   }
 
   function renameStage(oldName) {
@@ -286,28 +294,31 @@ window.KanbanPage = (function() {
 
     Toast.success(`Fase renomeada para "${newName}"!`);
     openConfigModal(); // refresh modal
-    applyFilters(); // refresh board behind
+    init(); // completely re-init board instead of applyFilters because applyFilters was scoped to init
   }
 
   function init() {
     renderBoard();
 
-    const courseFilter = document.getElementById('kanban-filter-course');
-    const attendantFilter = document.getElementById('kanban-filter-attendant');
-    const dateFilter = document.getElementById('kanban-filter-date');
+    const refreshFilters = () => {
+      const filterCourse = document.getElementById('kanban-filter-course').value;
+      const filterAttendant = document.getElementById('kanban-filter-attendant').value;
+      const filterDate = document.getElementById('kanban-filter-date').value;
+      const filterSemester = document.getElementById('kanban-filter-semester').value;
+      
+      const filters = { query: currentSearchQuery };
+      if (filterCourse) filters.course = filterCourse;
+      if (filterAttendant) filters.attendantId = filterAttendant;
+      if (filterDate) filters.date = filterDate;
+      if (filterSemester) filters.semester = filterSemester;
 
-    function applyFilters() {
-      const filters = {};
-      if (courseFilter && courseFilter.value) filters.course = courseFilter.value;
-      if (attendantFilter && attendantFilter.value) filters.attendantId = attendantFilter.value;
-      if (dateFilter && dateFilter.value) filters.date = dateFilter.value;
-      if (currentSearchQuery) filters.query = currentSearchQuery;
       renderBoard(filters);
-    }
+    };
 
-    if (courseFilter) courseFilter.addEventListener('change', applyFilters);
-    if (attendantFilter) attendantFilter.addEventListener('change', applyFilters);
-    if (dateFilter) dateFilter.addEventListener('change', applyFilters);
+    document.getElementById('kanban-filter-course').addEventListener('change', refreshFilters);
+    document.getElementById('kanban-filter-attendant').addEventListener('change', refreshFilters);
+    document.getElementById('kanban-filter-date').addEventListener('change', refreshFilters);
+    document.getElementById('kanban-filter-semester').addEventListener('change', refreshFilters);
 
     // Setup config button
     const configBtn = document.getElementById('btn-config-stages');
