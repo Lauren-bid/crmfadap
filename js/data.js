@@ -7,6 +7,7 @@ window.DataStore = (function() {
     users: [],
     funnelStages: null,
     semesters: null,
+    events: [],
     currentUserId: null
   };
 
@@ -55,6 +56,19 @@ window.DataStore = (function() {
             needsSave = true;
           }
         });
+        if (!_data.events || _data.events.length === 0) {
+          _data.events = [
+            { id: 'ev-1', title: 'Corrida Academia Corpus', dateText: '27/06', sortDate: '2026-06-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+            { id: 'ev-2', title: 'Feira Casul', dateText: '01 e 02/07', sortDate: '2026-07-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+            { id: 'ev-3', title: 'Café da Manhã com Pastores', dateText: '04/07', sortDate: '2026-07-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+            { id: 'ev-4', title: 'SIPAT Amenco', dateText: '27 a 30/07', sortDate: '2026-07-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+            { id: 'ev-5', title: 'Volta às Aulas FADAP', dateText: '03/08', sortDate: '2026-08-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+            { id: 'ev-6', title: 'Dia da Saúde Jacto', dateText: '08/08', sortDate: '2026-08-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+            { id: 'ev-7', title: 'Visita de 150 alunos da Escola Abarca', dateText: '12 e 13/08', sortDate: '2026-08-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+            { id: 'ev-8', title: 'Feira das Profissões', dateText: 'Setembro (data a definir)', sortDate: '2026-09-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() }
+          ];
+          needsSave = true;
+        }
         if (needsSave) save();
       } catch (e) {
         console.error('Error parsing localStorage data', e);
@@ -614,6 +628,47 @@ window.DataStore = (function() {
     save();
   }
 
+  // --- Events CRUD ---
+
+  function getEvents() {
+    return _data.events || [];
+  }
+
+  function addEvent(eventData) {
+    if (!_data.events) _data.events = [];
+    const newEvent = {
+      id: Utils.generateId(),
+      title: eventData.title,
+      dateText: eventData.dateText, // Ex: '27 a 30/07'
+      sortDate: eventData.sortDate, // Ex: '2026-07-27'
+      location: eventData.location || '',
+      description: eventData.description || '',
+      status: eventData.status || 'Pendente', // 'Pendente' ou 'Realizado'
+      ownerId: eventData.ownerId || _data.currentUserId,
+      createdAt: new Date().toISOString()
+    };
+    _data.events.push(newEvent);
+    save();
+    return newEvent;
+  }
+
+  function updateEvent(id, eventData) {
+    if (!_data.events) return null;
+    const index = _data.events.findIndex(e => e.id === id);
+    if (index > -1) {
+      _data.events[index] = { ..._data.events[index], ...eventData };
+      save();
+      return _data.events[index];
+    }
+    return null;
+  }
+
+  function deleteEvent(id) {
+    if (!_data.events) return;
+    _data.events = _data.events.filter(e => e.id !== id);
+    save();
+  }
+
   return {
     init,
     save,
@@ -649,6 +704,10 @@ window.DataStore = (function() {
     reorderFunnelStages,
     getSemesters,
     addSemester,
-    deleteSemester
+    deleteSemester,
+    getEvents,
+    addEvent,
+    updateEvent,
+    deleteEvent
   };
 })();

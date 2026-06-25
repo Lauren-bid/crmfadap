@@ -370,6 +370,11 @@ window.App = (function() {
       setTimeout(() => CommissionsPage.init(), 0);
       breadcrumbs = ['Sistema', 'Relatório de Comissões'];
     }
+    else if (hash === 'agenda') {
+      pageContainer.innerHTML = AgendaPage.render();
+      setTimeout(() => AgendaPage.init(), 0);
+      breadcrumbs = ['Sistema', 'Agenda de Eventos'];
+    }
     else {
       // 404 fallback
       pageContainer.innerHTML = `<div class="empty-state"><h3>Página não encontrada</h3></div>`;

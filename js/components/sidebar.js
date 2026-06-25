@@ -55,6 +55,10 @@ window.Sidebar = (function() {
             <i data-lucide="dollar-sign"></i>
             <span>Comissões</span>
           </a>
+          <a href="#/agenda" class="sidebar-nav-item" data-route="agenda">
+            <i data-lucide="calendar-days"></i>
+            <span>Agenda de Eventos</span>
+          </a>
         </nav>
 
         <div class="sidebar-footer">
