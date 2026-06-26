@@ -52,8 +52,8 @@ window.AgendaPage = (function() {
 
     let events = DataStore.getEvents();
     
-    // Sort events by sortDate ascending
-    events.sort((a, b) => new Date(a.sortDate || '2099-01-01') - new Date(b.sortDate || '2099-01-01'));
+    // Sort events by exactDate ascending
+    events.sort((a, b) => new Date(a.exactDate || '2099-01-01') - new Date(b.exactDate || '2099-01-01'));
 
     if (events.length === 0) {
       eventsList.innerHTML = `
@@ -76,8 +76,8 @@ window.AgendaPage = (function() {
     let currentGroup = '';
 
     events.forEach(ev => {
-      // Use sortDate to group by month
-      const dateObj = ev.sortDate ? new Date(ev.sortDate + 'T00:00:00') : new Date(); 
+      // Use exactDate to group by month
+      const dateObj = ev.exactDate ? new Date(ev.exactDate + 'T00:00:00') : new Date(); 
       const monthYear = dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
       
       if (monthYear !== currentGroup) {
@@ -142,7 +142,7 @@ window.AgendaPage = (function() {
 
   function openEventModal(id = null) {
     const isEdit = !!id;
-    let ev = { title: '', dateText: '', sortDate: '', location: '', description: '', status: 'Pendente' };
+    let ev = { title: '', dateText: '', exactDate: '', location: '', description: '', status: 'Pendente' };
     
     if (isEdit) {
       const allEvents = DataStore.getEvents();
@@ -163,8 +163,8 @@ window.AgendaPage = (function() {
             <input type="text" id="ev-date-text" class="form-input" placeholder="Ex: 27 a 30/07" required value="${Utils.escapeHtml(ev.dateText || '')}">
           </div>
           <div style="flex: 1;">
-            <label class="form-label" title="Usado apenas para ordenar a lista por mês">Mês Referência *</label>
-            <input type="month" id="ev-sort-date" class="form-input" required value="${ev.sortDate ? ev.sortDate.substring(0,7) : ''}">
+            <label class="form-label" title="Data real para alertas e organização">Data Base *</label>
+            <input type="date" id="ev-exact-date" class="form-input" required value="${ev.exactDate || ''}">
           </div>
         </div>
 
@@ -188,7 +188,7 @@ window.AgendaPage = (function() {
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
-          <button type="button" class="btn btn-secondary" onclick="Modal.close()">Cancelar</button>
+          <button type="button" class="btn btn-secondary" onclick="Modal.hide()">Cancelar</button>
           <button type="submit" class="btn btn-primary">${isEdit ? 'Salvar Alterações' : 'Criar Evento'}</button>
         </div>
       </form>
@@ -202,11 +202,11 @@ window.AgendaPage = (function() {
     document.getElementById('event-form').addEventListener('submit', (e) => {
       e.preventDefault();
       
-      const sortMonth = document.getElementById('ev-sort-date').value;
+      const exactDateVal = document.getElementById('ev-exact-date').value;
       const eventData = {
         title: document.getElementById('ev-title').value.trim(),
         dateText: document.getElementById('ev-date-text').value.trim(),
-        sortDate: sortMonth ? sortMonth + '-01' : '', // Convert YYYY-MM to YYYY-MM-DD
+        exactDate: exactDateVal,
         location: document.getElementById('ev-location').value.trim(),
         status: document.getElementById('ev-status').value,
         description: document.getElementById('ev-desc').value.trim()
@@ -220,7 +220,7 @@ window.AgendaPage = (function() {
         window.App.emit('toast', { type: 'success', message: 'Evento criado.' });
       }
 
-      Modal.close();
+      Modal.hide();
       renderEvents();
     });
   }

@@ -63,6 +63,42 @@ window.App = (function() {
         }
       }, 100); // Wait for page to render
     });
+
+    // 6. Check for upcoming events
+    setTimeout(checkUpcomingEvents, 1000);
+  }
+
+  function checkUpcomingEvents() {
+    if (!window.DataStore || !window.DataStore.getEvents) return;
+    const events = window.DataStore.getEvents();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    events.forEach(ev => {
+      if (ev.status === 'Realizado') return;
+      if (!ev.exactDate) return;
+
+      const evDate = new Date(ev.exactDate + 'T00:00:00');
+      const diffTime = evDate - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 2) {
+        emit('toast', { 
+          type: 'warning', 
+          message: `Atenção: Faltam 2 dias para o evento "${ev.title}"!`
+        });
+      } else if (diffDays === 1) {
+        emit('toast', { 
+          type: 'warning', 
+          message: `Atenção: Falta 1 dia para o evento "${ev.title}"!`
+        });
+      } else if (diffDays === 0) {
+        emit('toast', { 
+          type: 'info', 
+          message: `Lembrete: O evento "${ev.title}" é HOJE!`
+        });
+      }
+    });
   }
 
   function renderLoginScreen() {

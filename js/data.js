@@ -640,7 +640,7 @@ window.DataStore = (function() {
       id: Utils.generateId(),
       title: eventData.title,
       dateText: eventData.dateText, // Ex: '27 a 30/07'
-      sortDate: eventData.sortDate, // Ex: '2026-07-27'
+      exactDate: eventData.exactDate, // Ex: '2026-07-27'
       location: eventData.location || '',
       description: eventData.description || '',
       status: eventData.status || 'Pendente', // 'Pendente' ou 'Realizado'
