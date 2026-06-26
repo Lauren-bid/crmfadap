@@ -3,25 +3,51 @@
 window.Utils = (function() {
   
   // Constants - Updated with real spreadsheet data
-  const COURSES_PRESENCIAL = [
-    'Direito', 'Psicologia', 'Fisioterapia', 'Enfermagem', 'Farmácia', 
-    'Biomedicina', 'Inteligência Artificial', 'Estética e Cosmética', 
-    'Terapia Ocupacional', 'Administração'
+  const COURSES = [
+    'Administração',
+    'Análise e Desenvolvimento de Sistemas',
+    'Banco de Dados',
+    'Biomedicina',
+    'Ciências Contábeis',
+    'Direito',
+    'Educação Física (Bach.)',
+    'Educação Física (Lic.)',
+    'Enfermagem',
+    'Engenharia Civil',
+    'Engenharia da Computação',
+    'Engenharia de Produção',
+    'Estética e Cosméticos',
+    'Farmácia',
+    'Fisioterapia',
+    'Gastronomia',
+    'Gestão Ambiental',
+    'Gestão Comercial',
+    'Gestão da Produção Industrial',
+    'Gestão da Qualidade',
+    'Gestão da Segurança Privada',
+    'Gestão de RH',
+    'Gestão de Serviços Judiciais e Notariais',
+    'Gestão do Agronegócio',
+    'Gestão Financeira',
+    'Gestão Hospitalar',
+    'Gestão Pública',
+    'História',
+    'Inteligência Artificial',
+    'Jogos Digitais',
+    'Logística',
+    'Marketing',
+    'Matemática',
+    'Pedagogia',
+    'Processos Gerenciais',
+    'Psicologia',
+    'Secretariado',
+    'Segurança Cibernética',
+    'Teologia',
+    'Terapia Ocupacional'
   ];
 
-  const COURSES_EAD = [
-    'Pedagogia', 'Educação Física (Lic.)', 'Engenharia Civil', 
-    'Análise e Desenvolvimento de Sistemas', 'Ciências Contábeis', 
-    'Marketing', 'Gestão Hospitalar', 'Gestão do Agronegócio', 
-    'Gestão Comercial', 'Logística', 'Processos Gerenciais', 
-    'Engenharia da Computação', 'Gastronomia', 'Teologia', 
-    'Secretariado', 'Jogos Digitais', 'Gestão de RH', 
-    'Gestão de Qualidade', 'Gestão de Segurança Privada', 
-    'Gestão da Produção Industrial', 'Gestão de Serviços Judiciais',
-    'Gestão Financeira'
-  ];
-
-  const COURSES = [...COURSES_PRESENCIAL, ...COURSES_EAD, 'Pós-graduação', '(Outro Curso)', 'Não Preencheu'];
+  const COURSES_PRESENCIAL = [];
+  const COURSES_EAD = [];
 
   const ORIGINS = [
     'Tráfego Pago', 'WhatsApp', 'Site', 'Indicação', 'Presencial',
