@@ -5,6 +5,10 @@ window.App = (function() {
   let currentRoute = '';
   let _initRunning = false; // evita init() concorrente (onAuthStateChanged dispara várias vezes)
 
+  // E-mail do administrador-semente (bate com a regra de bootstrap no Firestore).
+  // NÃO é segredo: é só um identificador. A senha é definida pela Ana no cadastro.
+  const ADMIN_SEED_EMAIL = 'lauren.bidoia@fadap.br';
+
   // Simple event bus
   const events = {};
 
@@ -389,14 +393,18 @@ window.App = (function() {
         const cred = await window.FB.secondaryAuth.createUserWithEmailAndPassword(email, password);
         const uid = cred.user.uid;
 
+        // Conta-semente do administrador (definida nas Security Rules): nasce já
+        // aprovada como Administrador. Qualquer outro e-mail nasce pendente.
+        const isSeedAdmin = email.toLowerCase() === ADMIN_SEED_EMAIL;
+
         // Grava o perfil via secondaryDb: está autenticado como o usuário recém
-        // criado, então a regra "create do próprio doc com status pending" passa.
+        // criado, então as regras "create do próprio doc" passam.
         await window.FB.secondaryDb.collection('users').doc(uid).set({
           id: uid,
           name: name,
           email: email,
-          role: role,
-          status: 'pending',
+          role: isSeedAdmin ? 'Administrador' : role,
+          status: isSeedAdmin ? 'approved' : 'pending',
           active: true,
           avatar: Utils.getInitials(name)
         });
@@ -404,7 +412,11 @@ window.App = (function() {
         // Encerra a sessão secundária (não queremos manter logado o recém-criado).
         await window.FB.secondaryAuth.signOut();
 
-        showAuthMessage('Conta criada com sucesso! Aguarde a aprovação do Administrador para acessar o sistema.', 'success');
+        if (isSeedAdmin) {
+          showAuthMessage('Conta de administrador criada! Já pode entrar.', 'success');
+        } else {
+          showAuthMessage('Conta criada com sucesso! Aguarde a aprovação do Administrador para acessar o sistema.', 'success');
+        }
         setTimeout(() => { switchAuthTab('login'); }, 3000);
       } catch (err) {
         const code = err && err.code;
@@ -592,41 +604,6 @@ window.App = (function() {
     }
   }
 
-  // Garante que a conta admin (Ana Lauren) exista no Auth e no Firestore.
-  // Roda uma vez; se já existir, não faz nada. Idempotente e seguro.
-  async function ensureAdminAccount() {
-    const ADMIN = {
-      email: 'lauren.bidoia@fadap.br',
-      password: '***REMOVIDO***',
-      name: 'Ana Lauren',
-      role: 'Administrador'
-    };
-    try {
-      // Tenta criar no Auth via instância secundária (não mexe na sessão atual).
-      const cred = await window.FB.secondaryAuth.createUserWithEmailAndPassword(ADMIN.email, ADMIN.password);
-      const uid = cred.user.uid;
-      // Grava via secondaryDb (autenticado como o próprio admin recém-criado).
-      // A regra permite o usuário criar o próprio doc; aqui ele já nasce approved
-      // porque o bootstrap inicial não tem nenhum admin para aprovar.
-      await window.FB.secondaryDb.collection('users').doc(uid).set({
-        id: uid,
-        name: ADMIN.name,
-        email: ADMIN.email,
-        role: ADMIN.role,
-        status: 'approved',
-        active: true,
-        avatar: Utils.getInitials(ADMIN.name)
-      });
-      await window.FB.secondaryAuth.signOut();
-      console.log('Conta admin (Ana Lauren) criada.');
-    } catch (err) {
-      // Se já existe, o Auth devolve 'auth/email-already-in-use' — comportamento esperado.
-      if (err && err.code !== 'auth/email-already-in-use') {
-        console.warn('ensureAdminAccount:', err.code || err.message);
-      }
-    }
-  }
-
   return {
     init,
     logout,
@@ -635,8 +612,7 @@ window.App = (function() {
     on,
     emit,
     switchAuthTab,
-    togglePasswordVisibility,
-    ensureAdminAccount
+    togglePasswordVisibility
   };
 })();
 
@@ -647,9 +623,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       `<div style="padding:40px;text-align:center;font-family:sans-serif;color:#991B1B;">Erro ao carregar o Firebase. Verifique a conexão e recarregue.</div>`;
     return;
   }
-
-  // Garante a conta admin na primeira vez (idempotente).
-  await window.App.ensureAdminAccount();
 
   // O Firebase restaura a sessão de forma assíncrona; reagimos a cada mudança.
   window.FB.auth.onAuthStateChanged(() => {
