@@ -352,6 +352,7 @@ window.DataStore = (function() {
     if (!lead.contracts) lead.contracts = [];
     const contract = { ...data, id: Utils.generateId() };
     lead.contracts.push(contract);
+    lead.lastUpdate = new Date().toISOString(); // necessário p/ o delta-sync detectar
     saveLeadDoc(lead);
     return contract;
   }
@@ -362,6 +363,7 @@ window.DataStore = (function() {
     const idx = lead.contracts.findIndex(c => c.id === contractId);
     if (idx !== -1) {
       lead.contracts[idx] = { ...lead.contracts[idx], ...data };
+      lead.lastUpdate = new Date().toISOString(); // necessário p/ o delta-sync detectar
       saveLeadDoc(lead);
     }
   }
@@ -373,6 +375,7 @@ window.DataStore = (function() {
 
     const doc = { ...data, id: Utils.generateId(), uploadDate: new Date().toISOString() };
     lead.documents.push(doc);
+    lead.lastUpdate = new Date().toISOString(); // necessário p/ o delta-sync detectar
     saveLeadDoc(lead);
     return doc;
   }
