@@ -113,31 +113,64 @@ window.App = (function() {
 
         <div class="card" style="position: relative; z-index: 10; max-width: 440px; width: 100%; text-align: center; border-radius: 16px; padding: 40px; box-shadow: 0 15px 50px rgba(0,0,0,0.4); background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
           
-          <div style="margin-bottom: 32px;">
+          <div style="margin-bottom: 24px;">
             <div style="width: 80px; height: 80px; background-color: #f8f9fa; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #9B1B30;">
               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
             </div>
             <h2 style="color: #111827; font-weight: 800; font-size: 1.8rem; margin-bottom: 4px; letter-spacing: -0.5px;">CRM UNIFADAP</h2>
-            <p style="color: #6B7280; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 12px;">Centro Universitário da Alta Paulista</p>
-            <p style="color: #4B5563; font-size: 0.9rem;">Identifique-se para acessar a plataforma</p>
+            <p style="color: #6B7280; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 0;">Centro Universitário da Alta Paulista</p>
           </div>
-          
-          <form id="login-form" style="text-align: left; display: flex; flex-direction: column; gap: 20px;">
-            <div id="login-error" style="display: none; padding: 12px; background-color: #FEF2F2; color: #991B1B; border-radius: 8px; font-size: 0.85rem; text-align: center; font-weight: 500;"></div>
-            
-            <div>
-              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 6px;">Seu Nome Completo</label>
-              <input type="text" id="login-name" required placeholder="Ex: João Silva" style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#9B1B30'" onblur="this.style.borderColor='#D1D5DB'">
-            </div>
 
+          <!-- Tabs -->
+          <div id="auth-tabs" style="display: flex; margin-bottom: 24px; border-bottom: 2px solid #E5E7EB;">
+            <button type="button" id="tab-login" class="auth-tab active" onclick="window.App.switchAuthTab('login')" style="flex: 1; padding: 10px; border: none; background: none; font-size: 0.95rem; font-weight: 600; cursor: pointer; color: #9B1B30; border-bottom: 2px solid #9B1B30; margin-bottom: -2px; transition: all 0.2s;">Entrar</button>
+            <button type="button" id="tab-register" class="auth-tab" onclick="window.App.switchAuthTab('register')" style="flex: 1; padding: 10px; border: none; background: none; font-size: 0.95rem; font-weight: 600; cursor: pointer; color: #9CA3AF; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s;">Criar Conta</button>
+          </div>
+
+          <div id="auth-message" style="display: none; padding: 12px; border-radius: 8px; font-size: 0.85rem; text-align: center; font-weight: 500; margin-bottom: 16px;"></div>
+
+          <!-- LOGIN FORM -->
+          <form id="login-form" style="text-align: left; display: flex; flex-direction: column; gap: 16px;">
             <div>
-              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 6px;">Seu E-mail Institucional</label>
-              <input type="email" id="login-email" required placeholder="Ex: joao@fadap.br" style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#9B1B30'" onblur="this.style.borderColor='#D1D5DB'">
+              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 6px;">E-mail</label>
+              <input type="email" id="login-email" required placeholder="seu@email.com" style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#9B1B30'" onblur="this.style.borderColor='#D1D5DB'">
             </div>
-            
+            <div>
+              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 6px;">Senha</label>
+              <div style="position: relative;">
+                <input type="password" id="login-password" required placeholder="Sua senha" style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s; padding-right: 44px;" onfocus="this.style.borderColor='#9B1B30'" onblur="this.style.borderColor='#D1D5DB'">
+                <button type="button" onclick="window.App.togglePasswordVisibility('login-password', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #9CA3AF; padding: 4px;" title="Mostrar senha">
+                  <svg id="eye-icon-login" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <button type="submit" style="width: 100%; padding: 12px; background-color: #9B1B30; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#7A1526'" onmouseout="this.style.backgroundColor='#9B1B30'">
+              Entrar
+            </button>
+          </form>
+
+          <!-- REGISTER FORM -->
+          <form id="register-form" style="text-align: left; display: none; flex-direction: column; gap: 16px;">
+            <div>
+              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 6px;">Nome Completo</label>
+              <input type="text" id="reg-name" required placeholder="Ex: João Silva" style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#9B1B30'" onblur="this.style.borderColor='#D1D5DB'">
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 6px;">E-mail</label>
+              <input type="email" id="reg-email" required placeholder="seu@email.com" style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#9B1B30'" onblur="this.style.borderColor='#D1D5DB'">
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 6px;">Senha</label>
+              <div style="position: relative;">
+                <input type="password" id="reg-password" required minlength="6" placeholder="Mínimo 6 caracteres" style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s; padding-right: 44px;" onfocus="this.style.borderColor='#9B1B30'" onblur="this.style.borderColor='#D1D5DB'">
+                <button type="button" onclick="window.App.togglePasswordVisibility('reg-password', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #9CA3AF; padding: 4px;" title="Mostrar senha">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
             <div>
               <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 6px;">Setor de Atuação</label>
-              <select id="login-role" required style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.95rem; outline: none; background-color: white; transition: border-color 0.2s;" onfocus="this.style.borderColor='#9B1B30'" onblur="this.style.borderColor='#D1D5DB'">
+              <select id="reg-role" required style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 0.95rem; outline: none; background-color: white; transition: border-color 0.2s;" onfocus="this.style.borderColor='#9B1B30'" onblur="this.style.borderColor='#D1D5DB'">
                 <option value="" disabled selected>Selecione seu setor...</option>
                 <option value="Comercial">Comercial</option>
                 <option value="Marketing">Marketing</option>
@@ -147,9 +180,8 @@ window.App = (function() {
                 <option value="Secretaria">Secretaria</option>
               </select>
             </div>
-            
-            <button type="submit" style="width: 100%; padding: 12px; background-color: #9B1B30; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 10px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#7A1526'" onmouseout="this.style.backgroundColor='#9B1B30'">
-              Acessar CRM
+            <button type="submit" style="width: 100%; padding: 12px; background-color: #9B1B30; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#7A1526'" onmouseout="this.style.backgroundColor='#9B1B30'">
+              Criar Conta
             </button>
           </form>
 
@@ -179,21 +211,20 @@ window.App = (function() {
       // Generate particles
       const bgContainer = loginContainer.querySelector('.login-bg-container');
       const particles = [];
-      const numParticles = 120; // Increased amount of particles
-      const colors = ['red', 'pink', 'purple', 'cyan', 'gold', 'white', 'white', 'white']; // More white for balance
+      const numParticles = 120;
+      const colors = ['red', 'pink', 'purple', 'cyan', 'gold', 'white', 'white', 'white'];
       
       if (bgContainer) {
         for (let i = 0; i < numParticles; i++) {
           const p = document.createElement('div');
           p.className = 'bg-particle';
-          // Assign random color
           const color = colors[Math.floor(Math.random() * colors.length)];
           p.setAttribute('data-color', color);
 
-          const size = Math.random() * 3.5 + 1.5; // 1.5px to 5px
+          const size = Math.random() * 3.5 + 1.5;
           p.style.width = `${size}px`;
           p.style.height = `${size}px`;
-          p.style.opacity = Math.random() * 0.7 + 0.3; // 0.3 to 1.0 opacity
+          p.style.opacity = Math.random() * 0.7 + 0.3;
           
           const startX = Math.random() * window.innerWidth;
           const startY = Math.random() * window.innerHeight;
@@ -204,24 +235,21 @@ window.App = (function() {
             el: p,
             baseX: startX,
             baseY: startY,
-            driftX: (Math.random() - 0.5) * 0.3, // slow horizontal drift
-            driftY: -Math.random() * 0.4 - 0.1,  // continuous slow drift upwards
+            driftX: (Math.random() - 0.5) * 0.3,
+            driftY: -Math.random() * 0.4 - 0.1,
             parallaxSpeed: Math.random() * 0.03 + 0.01
           });
         }
       }
 
-      // Animation loop for smooth trailing effect
       let currentX = window.innerWidth / 2;
       let currentY = window.innerHeight / 2;
       
       function animateOrbs() {
-        if (document.getElementById('login-container')) { // Only run if login screen is active
-          // Lerp for smooth trailing
+        if (document.getElementById('login-container')) {
           currentX += (mouseX - currentX) * 0.08;
           currentY += (mouseY - currentY) * 0.08;
 
-          // Parallax calculation relative to center
           const centerX = window.innerWidth / 2;
           const centerY = window.innerHeight / 2;
           const deltaX = currentX - centerX;
@@ -230,29 +258,23 @@ window.App = (function() {
           orbs.forEach(orb => {
             const speed = parseFloat(orb.getAttribute('data-speed'));
             if (speed === 1) {
-              // Exact follower (Orb 3)
               orb.style.left = `${currentX}px`;
               orb.style.top = `${currentY}px`;
             } else {
-              // Parallax elements (Orbs 1 & 2)
               const moveX = deltaX * speed;
               const moveY = deltaY * speed;
               orb.style.transform = `translate(${moveX}px, ${moveY}px)`;
             }
           });
 
-          // Animate Particles
           particles.forEach(p => {
-             // Continuous drift
              p.baseX += p.driftX;
              p.baseY += p.driftY;
              
-             // Wrap around screen edges smoothly
              if (p.baseY < -20) p.baseY = window.innerHeight + 20;
              if (p.baseX < -20) p.baseX = window.innerWidth + 20;
              if (p.baseX > window.innerWidth + 20) p.baseX = -20;
 
-             // Parallax from mouse
              const moveX = deltaX * p.parallaxSpeed;
              const moveY = deltaY * p.parallaxSpeed;
              
@@ -263,65 +285,139 @@ window.App = (function() {
         }
       }
       
-      // Start loop
       requestAnimationFrame(animateOrbs);
     }
 
+    // LOGIN form handler
     document.getElementById('login-form').addEventListener('submit', function(e) {
       e.preventDefault();
-      const name = document.getElementById('login-name').value.trim();
       const email = document.getElementById('login-email').value.trim();
-      const role = document.getElementById('login-role').value;
-      if (name && email && role) {
-        window.App.loginNewUser(name, email, role);
+      const password = document.getElementById('login-password').value;
+      
+      const users = DataStore.getUsers();
+      let user = users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
+      // Fallback: try matching by name if email field was empty on old accounts
+      if (!user) {
+        user = users.find(u => u.name && u.name.toLowerCase() === email.toLowerCase());
       }
+      
+      if (!user) {
+        showAuthMessage('E-mail não encontrado. Crie uma conta primeiro.', 'error');
+        return;
+      }
+      if (user.password && user.password !== password) {
+        showAuthMessage('Senha incorreta. Tente novamente.', 'error');
+        return;
+      }
+      // If user has no password yet (old accounts), set the password they typed
+      if (!user.password) {
+        DataStore.updateUser(user.id, { password: password });
+      }
+      if (user.status === 'pending') {
+        showAuthMessage('Cadastro em análise. Aguarde a aprovação do Administrador.', 'warning');
+        return;
+      }
+      login(user.id);
     });
+
+    // REGISTER form handler
+    document.getElementById('register-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const role = document.getElementById('reg-role').value;
+
+      if (password.length < 6) {
+        showAuthMessage('A senha deve ter no mínimo 6 caracteres.', 'error');
+        return;
+      }
+      
+      const users = DataStore.getUsers();
+      const existing = users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
+      
+      if (existing) {
+        showAuthMessage('Já existe uma conta com este e-mail. Use a aba "Entrar".', 'error');
+        return;
+      }
+
+      DataStore.addUser({
+        name: name,
+        email: email,
+        password: password,
+        role: role,
+        status: 'pending',
+        active: true
+      });
+
+      showAuthMessage('Conta criada com sucesso! Aguarde a aprovação do Administrador para acessar o sistema.', 'success');
+      
+      // Switch back to login tab after 2 seconds
+      setTimeout(() => {
+        switchAuthTab('login');
+      }, 3000);
+    });
+  }
+
+  function showAuthMessage(message, type) {
+    const msgDiv = document.getElementById('auth-message');
+    if (!msgDiv) return;
+    msgDiv.style.display = 'block';
+    msgDiv.textContent = message;
+    if (type === 'error') {
+      msgDiv.style.backgroundColor = '#FEF2F2';
+      msgDiv.style.color = '#991B1B';
+    } else if (type === 'success') {
+      msgDiv.style.backgroundColor = '#F0FDF4';
+      msgDiv.style.color = '#166534';
+    } else if (type === 'warning') {
+      msgDiv.style.backgroundColor = '#FFFBEB';
+      msgDiv.style.color = '#92400E';
+    }
+  }
+
+  function switchAuthTab(tab) {
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const formLogin = document.getElementById('login-form');
+    const formRegister = document.getElementById('register-form');
+    const msgDiv = document.getElementById('auth-message');
+    if (!tabLogin || !tabRegister || !formLogin || !formRegister) return;
+
+    if (msgDiv) msgDiv.style.display = 'none';
+
+    if (tab === 'login') {
+      tabLogin.style.color = '#9B1B30';
+      tabLogin.style.borderBottom = '2px solid #9B1B30';
+      tabRegister.style.color = '#9CA3AF';
+      tabRegister.style.borderBottom = '2px solid transparent';
+      formLogin.style.display = 'flex';
+      formRegister.style.display = 'none';
+    } else {
+      tabRegister.style.color = '#9B1B30';
+      tabRegister.style.borderBottom = '2px solid #9B1B30';
+      tabLogin.style.color = '#9CA3AF';
+      tabLogin.style.borderBottom = '2px solid transparent';
+      formLogin.style.display = 'none';
+      formRegister.style.display = 'flex';
+    }
+  }
+
+  function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.title = 'Ocultar senha';
+    } else {
+      input.type = 'password';
+      btn.title = 'Mostrar senha';
+    }
   }
 
   function login(userId) {
     DataStore.setCurrentUser(userId);
     init(); // Re-init app
-  }
-
-  function loginNewUser(name, email, role) {
-    const users = DataStore.getUsers();
-    // Match by email if provided, otherwise by name
-    let user = users.find(u => u.email.toLowerCase() === email.toLowerCase() || u.name.toLowerCase() === name.toLowerCase());
-    
-    if (!user) {
-      // Create new user as pending
-      user = DataStore.addUser({
-        name: name,
-        email: email,
-        role: role,
-        status: 'pending',
-        active: true
-      });
-    } else {
-      // Update missing info
-      const updateData = { name: name, email: email };
-      // Prevent demoting an Administrator
-      if (user.role !== 'Administrador') {
-        updateData.role = role;
-      }
-      // Force Ana Lauren to always be Admin
-      if (user.name.toLowerCase() === 'ana lauren') {
-        updateData.role = 'Administrador';
-        updateData.status = 'approved';
-      }
-      DataStore.updateUser(user.id, updateData);
-    }
-    
-    if (user.status === 'pending') {
-      const errorDiv = document.getElementById('login-error');
-      if (errorDiv) {
-        errorDiv.style.display = 'block';
-        errorDiv.textContent = 'Cadastro em análise. Aguarde a aprovação do Administrador.';
-      }
-      return;
-    }
-
-    login(user.id);
   }
 
   function logout() {
@@ -442,12 +538,13 @@ window.App = (function() {
   return {
     init,
     login,
-    loginNewUser,
     logout,
     navigate,
     getCurrentRoute: () => currentRoute,
     on,
-    emit
+    emit,
+    switchAuthTab,
+    togglePasswordVisibility
   };
 })();
 

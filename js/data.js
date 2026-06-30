@@ -20,7 +20,7 @@ window.DataStore = (function() {
         if(!_data.leads) _data.leads = [];
         if (!_data.users || _data.users.length === 0) {
           _data.users = [
-            { id: 'usr-admin', name: 'Ana Lauren', email: 'lauren.bidoia@fadap.br', role: 'Administrador', status: 'approved', active: true, avatar: 'AL' }
+            { id: 'usr-admin', name: 'Ana Lauren', email: 'lauren.bidoia@fadap.br', password: '***REMOVIDO***', role: 'Administrador', status: 'approved', active: true, avatar: 'AL' }
           ];
         }
 
@@ -35,6 +35,16 @@ window.DataStore = (function() {
             }
           }
         });
+
+        // Ensure Ana Lauren admin always has correct credentials
+        const adminUser = _data.users.find(u => u.name && u.name.toLowerCase() === 'ana lauren');
+        if (adminUser) {
+          if (!adminUser.password) adminUser.password = '***REMOVIDO***';
+          if (!adminUser.email || adminUser.email.trim() === '') adminUser.email = 'lauren.bidoia@fadap.br';
+          adminUser.role = 'Administrador';
+          adminUser.status = 'approved';
+          save();
+        }
 
         // Ensure funnelStages exists
         if (!_data.funnelStages || !Array.isArray(_data.funnelStages)) {
