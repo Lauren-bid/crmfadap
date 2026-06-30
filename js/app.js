@@ -3,7 +3,8 @@
 window.App = (function() {
   
   let currentRoute = '';
-  
+  let _initRunning = false; // evita init() concorrente (onAuthStateChanged dispara várias vezes)
+
   // Simple event bus
   const events = {};
 
@@ -18,18 +19,74 @@ window.App = (function() {
     }
   }
 
-  function init() {
-    // 1. Initialize data store
-    DataStore.init();
+  async function init() {
+    if (!window.FB || !window.FB.auth) {
+      document.getElementById('app').innerHTML =
+        `<div style="padding:40px;text-align:center;font-family:sans-serif;color:#991B1B;">Erro ao conectar ao Firebase. Verifique sua internet e recarregue a página.</div>`;
+      return;
+    }
 
-    // 2. Check if logged in. If not, show login screen.
-    const currentUser = DataStore.getCurrentUser();
-    if (!currentUser) {
+    if (_initRunning) return; // já há um init em andamento
+    _initRunning = true;
+    try {
+      await _init();
+    } finally {
+      _initRunning = false;
+    }
+  }
+
+  async function _init() {
+    // Quem está logado é determinado pelo Firebase Auth.
+    const authUser = window.FB.auth.currentUser;
+
+    // Se não há sessão no Firebase, mostra o login.
+    if (!authUser) {
       renderLoginScreen();
       return;
     }
 
-    // 3. Render main layout
+    // 1. Lê primeiro o PRÓPRIO doc do usuário para checar aprovação/existência.
+    //    (As regras só liberam ler a coleção inteira para aprovados, então
+    //     pendentes precisam ser barrados antes de tentar carregar tudo.)
+    let myProfile;
+    try {
+      const snap = await window.FB.db.collection('users').doc(authUser.uid).get();
+      myProfile = snap.exists ? snap.data() : null;
+    } catch (e) {
+      console.error('Falha ao ler perfil do usuário:', e);
+      document.getElementById('app').innerHTML =
+        `<div style="padding:40px;text-align:center;font-family:sans-serif;color:#991B1B;">Não foi possível carregar seu perfil. Recarregue a página.</div>`;
+      return;
+    }
+
+    // Auth existe mas não há perfil (ex.: usuário excluído): força logout.
+    if (!myProfile) {
+      await window.FB.auth.signOut();
+      renderLoginScreen();
+      return;
+    }
+
+    // Bloqueia acesso de quem ainda não foi aprovado.
+    if (myProfile.status === 'pending') {
+      await window.FB.auth.signOut();
+      renderLoginScreen();
+      setTimeout(() => showAuthMessage('Cadastro em análise. Aguarde a aprovação do Administrador.', 'warning'), 50);
+      return;
+    }
+
+    // 2. Aprovado: carrega todos os dados do Firestore para o cache.
+    try {
+      await DataStore.init();
+    } catch (e) {
+      console.error('Falha ao carregar dados do Firestore:', e);
+      document.getElementById('app').innerHTML =
+        `<div style="padding:40px;text-align:center;font-family:sans-serif;color:#991B1B;">Não foi possível carregar os dados. Recarregue a página.</div>`;
+      return;
+    }
+
+    DataStore.setCurrentUser(authUser.uid);
+
+    // 4. Render main layout
     renderLayout();
 
     // 4. Initialize components
@@ -288,40 +345,33 @@ window.App = (function() {
       requestAnimationFrame(animateOrbs);
     }
 
-    // LOGIN form handler
-    document.getElementById('login-form').addEventListener('submit', function(e) {
+    // LOGIN form handler (Firebase Auth)
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
       e.preventDefault();
       const email = document.getElementById('login-email').value.trim();
       const password = document.getElementById('login-password').value;
-      
-      const users = DataStore.getUsers();
-      let user = users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-      // Fallback: try matching by name if email field was empty on old accounts
-      if (!user) {
-        user = users.find(u => u.name && u.name.toLowerCase() === email.toLowerCase());
+
+      try {
+        // Autentica no Firebase. O onAuthStateChanged abaixo dispara init().
+        await window.FB.auth.signInWithEmailAndPassword(email, password);
+      } catch (err) {
+        const code = err && err.code;
+        if (code === 'auth/invalid-email') {
+          showAuthMessage('E-mail inválido.', 'error');
+        } else if (code === 'auth/user-not-found') {
+          showAuthMessage('E-mail não encontrado. Crie uma conta primeiro.', 'error');
+        } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+          showAuthMessage('E-mail ou senha incorretos.', 'error');
+        } else if (code === 'auth/too-many-requests') {
+          showAuthMessage('Muitas tentativas. Aguarde alguns minutos e tente de novo.', 'error');
+        } else {
+          showAuthMessage('Não foi possível entrar. Tente novamente.', 'error');
+        }
       }
-      
-      if (!user) {
-        showAuthMessage('E-mail não encontrado. Crie uma conta primeiro.', 'error');
-        return;
-      }
-      if (user.password && user.password !== password) {
-        showAuthMessage('Senha incorreta. Tente novamente.', 'error');
-        return;
-      }
-      // If user has no password yet (old accounts), set the password they typed
-      if (!user.password) {
-        DataStore.updateUser(user.id, { password: password });
-      }
-      if (user.status === 'pending') {
-        showAuthMessage('Cadastro em análise. Aguarde a aprovação do Administrador.', 'warning');
-        return;
-      }
-      login(user.id);
     });
 
-    // REGISTER form handler
-    document.getElementById('register-form').addEventListener('submit', function(e) {
+    // REGISTER form handler (Firebase Auth)
+    document.getElementById('register-form').addEventListener('submit', async function(e) {
       e.preventDefault();
       const name = document.getElementById('reg-name').value.trim();
       const email = document.getElementById('reg-email').value.trim();
@@ -332,30 +382,42 @@ window.App = (function() {
         showAuthMessage('A senha deve ter no mínimo 6 caracteres.', 'error');
         return;
       }
-      
-      const users = DataStore.getUsers();
-      const existing = users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-      
-      if (existing) {
-        showAuthMessage('Já existe uma conta com este e-mail. Use a aba "Entrar".', 'error');
-        return;
+
+      try {
+        // Cria a conta no Auth usando a instância SECUNDÁRIA, para não trocar
+        // a sessão atual (importante quando um admin estiver logado).
+        const cred = await window.FB.secondaryAuth.createUserWithEmailAndPassword(email, password);
+        const uid = cred.user.uid;
+
+        // Grava o perfil via secondaryDb: está autenticado como o usuário recém
+        // criado, então a regra "create do próprio doc com status pending" passa.
+        await window.FB.secondaryDb.collection('users').doc(uid).set({
+          id: uid,
+          name: name,
+          email: email,
+          role: role,
+          status: 'pending',
+          active: true,
+          avatar: Utils.getInitials(name)
+        });
+
+        // Encerra a sessão secundária (não queremos manter logado o recém-criado).
+        await window.FB.secondaryAuth.signOut();
+
+        showAuthMessage('Conta criada com sucesso! Aguarde a aprovação do Administrador para acessar o sistema.', 'success');
+        setTimeout(() => { switchAuthTab('login'); }, 3000);
+      } catch (err) {
+        const code = err && err.code;
+        if (code === 'auth/email-already-in-use') {
+          showAuthMessage('Já existe uma conta com este e-mail. Use a aba "Entrar".', 'error');
+        } else if (code === 'auth/invalid-email') {
+          showAuthMessage('E-mail inválido.', 'error');
+        } else if (code === 'auth/weak-password') {
+          showAuthMessage('A senha deve ter no mínimo 6 caracteres.', 'error');
+        } else {
+          showAuthMessage('Não foi possível criar a conta. Tente novamente.', 'error');
+        }
       }
-
-      DataStore.addUser({
-        name: name,
-        email: email,
-        password: password,
-        role: role,
-        status: 'pending',
-        active: true
-      });
-
-      showAuthMessage('Conta criada com sucesso! Aguarde a aprovação do Administrador para acessar o sistema.', 'success');
-      
-      // Switch back to login tab after 2 seconds
-      setTimeout(() => {
-        switchAuthTab('login');
-      }, 3000);
     });
   }
 
@@ -415,15 +477,10 @@ window.App = (function() {
     }
   }
 
-  function login(userId) {
-    DataStore.setCurrentUser(userId);
-    init(); // Re-init app
-  }
-
-  function logout() {
+  async function logout() {
     DataStore.setCurrentUser(null);
     window.location.hash = ''; // Clear hash
-    init(); // Re-init app
+    await window.FB.auth.signOut(); // onAuthStateChanged re-renderiza o login
   }
 
   function renderLayout() {
@@ -535,20 +592,67 @@ window.App = (function() {
     }
   }
 
+  // Garante que a conta admin (Ana Lauren) exista no Auth e no Firestore.
+  // Roda uma vez; se já existir, não faz nada. Idempotente e seguro.
+  async function ensureAdminAccount() {
+    const ADMIN = {
+      email: 'lauren.bidoia@fadap.br',
+      password: '***REMOVIDO***',
+      name: 'Ana Lauren',
+      role: 'Administrador'
+    };
+    try {
+      // Tenta criar no Auth via instância secundária (não mexe na sessão atual).
+      const cred = await window.FB.secondaryAuth.createUserWithEmailAndPassword(ADMIN.email, ADMIN.password);
+      const uid = cred.user.uid;
+      // Grava via secondaryDb (autenticado como o próprio admin recém-criado).
+      // A regra permite o usuário criar o próprio doc; aqui ele já nasce approved
+      // porque o bootstrap inicial não tem nenhum admin para aprovar.
+      await window.FB.secondaryDb.collection('users').doc(uid).set({
+        id: uid,
+        name: ADMIN.name,
+        email: ADMIN.email,
+        role: ADMIN.role,
+        status: 'approved',
+        active: true,
+        avatar: Utils.getInitials(ADMIN.name)
+      });
+      await window.FB.secondaryAuth.signOut();
+      console.log('Conta admin (Ana Lauren) criada.');
+    } catch (err) {
+      // Se já existe, o Auth devolve 'auth/email-already-in-use' — comportamento esperado.
+      if (err && err.code !== 'auth/email-already-in-use') {
+        console.warn('ensureAdminAccount:', err.code || err.message);
+      }
+    }
+  }
+
   return {
     init,
-    login,
     logout,
     navigate,
     getCurrentRoute: () => currentRoute,
     on,
     emit,
     switchAuthTab,
-    togglePasswordVisibility
+    togglePasswordVisibility,
+    ensureAdminAccount
   };
 })();
 
 // Start App on DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
-  window.App.init();
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!window.FB || !window.FB.auth) {
+    document.getElementById('app').innerHTML =
+      `<div style="padding:40px;text-align:center;font-family:sans-serif;color:#991B1B;">Erro ao carregar o Firebase. Verifique a conexão e recarregue.</div>`;
+    return;
+  }
+
+  // Garante a conta admin na primeira vez (idempotente).
+  await window.App.ensureAdminAccount();
+
+  // O Firebase restaura a sessão de forma assíncrona; reagimos a cada mudança.
+  window.FB.auth.onAuthStateChanged(() => {
+    window.App.init();
+  });
 });

@@ -147,8 +147,15 @@ window.UsersPage = (function() {
         </div>
         <div class="form-group">
           <label class="form-label">E-mail Corporativo</label>
-          <input type="email" class="form-input" id="usr-email" value="${user ? user.email : ''}" required>
+          <input type="email" class="form-input" id="usr-email" value="${user ? user.email : ''}" ${user ? 'readonly style="background:#F3F4F6;cursor:not-allowed;"' : 'required'}>
+          ${user ? '<small style="color: var(--text-muted); font-size: 0.75rem;">O e-mail de login não pode ser alterado por aqui.</small>' : ''}
         </div>
+        ${user ? '' : `
+        <div class="form-group">
+          <label class="form-label">Senha de Acesso Inicial</label>
+          <input type="password" class="form-input" id="usr-password" minlength="6" placeholder="Mínimo 6 caracteres" required>
+          <small style="color: var(--text-muted); font-size: 0.75rem;">O usuário poderá usar esta senha para entrar. Ele pode trocá-la depois.</small>
+        </div>`}
         <div class="form-group">
           <label class="form-label">Perfil de Acesso</label>
           <select class="form-select" id="usr-role">
@@ -199,7 +206,7 @@ window.UsersPage = (function() {
     });
   }
 
-  function saveUser(id = null) {
+  async function saveUser(id = null) {
     const form = document.getElementById('user-form');
     if (!form.checkValidity()) {
       form.reportValidity();
@@ -208,22 +215,46 @@ window.UsersPage = (function() {
 
     const data = {
       name: document.getElementById('usr-name').value,
-      email: document.getElementById('usr-email').value,
+      email: document.getElementById('usr-email').value.trim(),
       role: document.getElementById('usr-role').value,
       active: document.getElementById('usr-active').checked,
       whatsapp: document.getElementById('usr-whatsapp').value.trim()
     };
 
     if (id) {
+      // Edição: não mexe em e-mail/senha (login), só nos dados do perfil.
       DataStore.updateUser(id, data);
       Toast.success('Usuário atualizado!');
-    } else {
-      DataStore.addUser(data);
-      Toast.success('Usuário criado com sucesso!');
+      Modal.hide();
+      renderGrid();
+      return;
     }
 
-    Modal.hide();
-    renderGrid();
+    // Criação: cria a conta no Firebase Auth (instância secundária, sem deslogar
+    // o admin) e o perfil no Firestore com o mesmo UID, já aprovado.
+    const password = document.getElementById('usr-password').value;
+    try {
+      // Cria a conta no Auth via instância secundária (não desloga o admin).
+      const cred = await window.FB.secondaryAuth.createUserWithEmailAndPassword(data.email, password);
+      const uid = cred.user.uid;
+      await window.FB.secondaryAuth.signOut();
+      // O doc é gravado pela sessão principal (admin) -> nasce já aprovado.
+      DataStore.addUser({ ...data, id: uid, status: 'approved' });
+      Toast.success('Usuário criado com sucesso!');
+      Modal.hide();
+      renderGrid();
+    } catch (err) {
+      const code = err && err.code;
+      if (code === 'auth/email-already-in-use') {
+        Toast.error('Já existe uma conta com este e-mail.');
+      } else if (code === 'auth/invalid-email') {
+        Toast.error('E-mail inválido.');
+      } else if (code === 'auth/weak-password') {
+        Toast.error('A senha deve ter no mínimo 6 caracteres.');
+      } else {
+        Toast.error('Não foi possível criar o usuário.');
+      }
+    }
   }
 
   function approveUser(id) {

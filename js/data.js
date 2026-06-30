@@ -1,7 +1,12 @@
 // js/data.js
+//
+// Camada de dados do CRM.
+// Estratégia: o Firestore é a fonte da verdade. No boot, carregamos TUDO para um
+// cache em memória (_data). As páginas continuam lendo de forma síncrona desse
+// cache (nada muda nelas). Toda ESCRITA atualiza o cache e grava no Firestore
+// por trás (assíncrono). A sessão (quem está logado) é controlada pelo Firebase Auth.
 
 window.DataStore = (function() {
-  const STORAGE_KEY = 'unifadap_crm_data_v2';
   let _data = {
     leads: [],
     users: [],
@@ -11,109 +16,119 @@ window.DataStore = (function() {
     currentUserId: null
   };
 
-  function init() {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        _data = JSON.parse(stored);
-        // Ensure arrays exist
-        if(!_data.leads) _data.leads = [];
-        if (!_data.users || _data.users.length === 0) {
-          _data.users = [
-            { id: 'usr-admin', name: 'Ana Lauren', email: 'lauren.bidoia@fadap.br', password: '***REMOVIDO***', role: 'Administrador', status: 'approved', active: true, avatar: 'AL' }
-          ];
-        }
+  function db() { return window.FB && window.FB.db; }
 
-        // Ensure all existing users have a status
-        _data.users.forEach(u => {
-          if (!u.status) {
-            if (u.name.toLowerCase() === 'ana lauren') {
-              u.role = 'Administrador';
-              u.status = 'approved';
-            } else {
-              u.status = 'approved';
-            }
-          }
-        });
+  // --- Persistência por documento (Firestore) ---------------------------------
 
-        // Ensure Ana Lauren admin always has correct credentials
-        const adminUser = _data.users.find(u => u.name && u.name.toLowerCase() === 'ana lauren');
-        if (adminUser) {
-          if (!adminUser.password) adminUser.password = '***REMOVIDO***';
-          if (!adminUser.email || adminUser.email.trim() === '') adminUser.email = 'lauren.bidoia@fadap.br';
-          adminUser.role = 'Administrador';
-          adminUser.status = 'approved';
-          save();
-        }
-
-        // Ensure funnelStages exists
-        if (!_data.funnelStages || !Array.isArray(_data.funnelStages)) {
-          _data.funnelStages = [...Utils.FUNNEL_STAGES];
-          save();
-        }
-
-        // Ensure semesters exists
-        if (!_data.semesters || !Array.isArray(_data.semesters)) {
-          _data.semesters = [...Utils.SEMESTERS];
-          save();
-        }
-
-        // Migrate attendantId to attendantIds array
-        let needsSave = false;
-        _data.leads.forEach(l => {
-          if (!l.attendantIds) {
-            l.attendantIds = l.attendantId ? [l.attendantId] : [];
-            needsSave = true;
-          }
-        });
-        if (!_data.events || _data.events.length === 0) {
-          _data.events = [
-            { id: 'ev-1', title: 'Corrida Academia Corpus', dateText: '27/06', sortDate: '2026-06-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
-            { id: 'ev-2', title: 'Feira Casul', dateText: '01 e 02/07', sortDate: '2026-07-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
-            { id: 'ev-3', title: 'Café da Manhã com Pastores', dateText: '04/07', sortDate: '2026-07-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
-            { id: 'ev-4', title: 'SIPAT Amenco', dateText: '27 a 30/07', sortDate: '2026-07-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
-            { id: 'ev-5', title: 'Volta às Aulas FADAP', dateText: '03/08', sortDate: '2026-08-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
-            { id: 'ev-6', title: 'Dia da Saúde Jacto', dateText: '08/08', sortDate: '2026-08-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
-            { id: 'ev-7', title: 'Visita de 150 alunos da Escola Abarca', dateText: '12 e 13/08', sortDate: '2026-08-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
-            { id: 'ev-8', title: 'Feira das Profissões', dateText: 'Setembro (data a definir)', sortDate: '2026-09-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() }
-          ];
-          needsSave = true;
-        }
-        if (needsSave) save();
-      } catch (e) {
-        console.error('Error parsing localStorage data', e);
-        _data = SeedData.generate();
-        save();
-      }
-    } else {
-      // First time run, generate seed data
-      _data = SeedData.generate();
-      save();
-    }
+  function saveLeadDoc(lead) {
+    if (!db() || !lead) return;
+    db().collection('leads').doc(lead.id).set(lead)
+      .catch(e => console.error('Erro ao salvar lead no Firestore:', e));
   }
 
-  function save() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(_data));
-    } catch (e) {
-      if (e.name === 'QuotaExceededError' || e.message.includes('quota')) {
-        alert('ERRO CRÍTICO: O armazenamento do navegador está cheio! Exporte seus dados imediatamente ou libere espaço no navegador, caso contrário, novos leads não serão salvos.');
-      } else {
-        console.error('Erro ao salvar os dados:', e);
-      }
-    }
+  function deleteLeadDoc(id) {
+    if (!db()) return;
+    db().collection('leads').doc(id).delete()
+      .catch(e => console.error('Erro ao excluir lead no Firestore:', e));
   }
 
-  // --- Leads CRUD ---
-  
+  function saveUserDoc(user) {
+    if (!db() || !user) return;
+    db().collection('users').doc(user.id).set(user)
+      .catch(e => console.error('Erro ao salvar usuário no Firestore:', e));
+  }
+
+  function deleteUserDoc(id) {
+    if (!db()) return;
+    db().collection('users').doc(id).delete()
+      .catch(e => console.error('Erro ao excluir usuário no Firestore:', e));
+  }
+
+  function saveEventDoc(ev) {
+    if (!db() || !ev) return;
+    db().collection('events').doc(ev.id).set(ev)
+      .catch(e => console.error('Erro ao salvar evento no Firestore:', e));
+  }
+
+  function deleteEventDoc(id) {
+    if (!db()) return;
+    db().collection('events').doc(id).delete()
+      .catch(e => console.error('Erro ao excluir evento no Firestore:', e));
+  }
+
+  // Configurações globais (funnelStages, semesters) ficam num único doc.
+  function saveSettings() {
+    if (!db()) return;
+    db().collection('settings').doc('global').set({
+      funnelStages: _data.funnelStages || [],
+      semesters: _data.semesters || []
+    }).catch(e => console.error('Erro ao salvar settings no Firestore:', e));
+  }
+
+  // --- Carregamento inicial ----------------------------------------------------
+
+  async function init() {
+    if (!db()) {
+      throw new Error('Firestore não inicializado (window.FB.db ausente).');
+    }
+
+    // Carrega todas as coleções em paralelo.
+    const [leadsSnap, usersSnap, eventsSnap, settingsSnap] = await Promise.all([
+      db().collection('leads').get(),
+      db().collection('users').get(),
+      db().collection('events').get(),
+      db().collection('settings').doc('global').get()
+    ]);
+
+    _data.leads = leadsSnap.docs.map(d => d.data());
+    _data.users = usersSnap.docs.map(d => d.data());
+    _data.events = eventsSnap.docs.map(d => d.data());
+
+    const settings = settingsSnap.exists ? settingsSnap.data() : null;
+    _data.funnelStages = (settings && Array.isArray(settings.funnelStages) && settings.funnelStages.length)
+      ? settings.funnelStages
+      : [...Utils.FUNNEL_STAGES];
+    _data.semesters = (settings && Array.isArray(settings.semesters) && settings.semesters.length)
+      ? settings.semesters
+      : [...Utils.SEMESTERS];
+
+    // Primeira execução: banco vazio -> grava os settings padrão.
+    if (!settingsSnap.exists) {
+      saveSettings();
+    }
+
+    // Garante os eventos-base na primeira execução (banco sem eventos).
+    if (_data.events.length === 0) {
+      const seedEvents = [
+        { id: 'ev-1', title: 'Corrida Academia Corpus', dateText: '27/06', exactDate: '2026-06-27', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+        { id: 'ev-2', title: 'Feira Casul', dateText: '01 e 02/07', exactDate: '2026-07-01', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+        { id: 'ev-3', title: 'Café da Manhã com Pastores', dateText: '04/07', exactDate: '2026-07-04', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+        { id: 'ev-4', title: 'SIPAT Amenco', dateText: '27 a 30/07', exactDate: '2026-07-27', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+        { id: 'ev-5', title: 'Volta às Aulas FADAP', dateText: '03/08', exactDate: '2026-08-03', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() },
+        { id: 'ev-6', title: 'Dia da Saúde Jacto', dateText: '08/08', exactDate: '2026-08-08', location: '', status: 'Pendente', ownerId: 'usr-admin', createdAt: new Date().toISOString() }
+      ];
+      seedEvents.forEach(ev => { _data.events.push(ev); saveEventDoc(ev); });
+    }
+
+    // Migra attendantId -> attendantIds (compatibilidade com dados antigos).
+    _data.leads.forEach(l => {
+      if (!l.attendantIds) {
+        l.attendantIds = l.attendantId ? [l.attendantId] : [];
+        saveLeadDoc(l);
+      }
+    });
+  }
+
+  // --- Leads CRUD --------------------------------------------------------------
+
   function getLeads(filters = {}) {
     let result = [..._data.leads];
 
     if (filters.query) {
       const q = filters.query.toLowerCase();
-      result = result.filter(l => 
-        (l.name && l.name.toLowerCase().includes(q)) || 
-        (l.cpf && l.cpf.includes(q)) || 
+      result = result.filter(l =>
+        (l.name && l.name.toLowerCase().includes(q)) ||
+        (l.cpf && l.cpf.includes(q)) ||
         (l.email && l.email.toLowerCase().includes(q)) ||
         (l.phone && l.phone.includes(q))
       );
@@ -127,17 +142,11 @@ window.DataStore = (function() {
     if (filters.modality && filters.modality !== '') result = result.filter(l => (l.modality || '').toLowerCase() === filters.modality.toLowerCase());
     if (filters.date && filters.date !== '') {
       result = result.filter(l => {
-        // Find the last contact date from interactions (timeline)
         let lastContactDate = null;
         if (l.interactions && l.interactions.length > 0) {
-          // interactions are sorted newest first (unshift on add)
-          // Find the most recent non-system interaction, or fallback to most recent overall
-          const lastInteraction = l.interactions[0];
-          lastContactDate = lastInteraction.createdAt;
+          lastContactDate = l.interactions[0].createdAt;
         }
-        // Fallback to lastUpdate if no interactions
         if (!lastContactDate) lastContactDate = l.lastUpdate || l.createdAt;
-        
         const contactIso = new Date(lastContactDate).toISOString().split('T')[0];
         return contactIso === filters.date;
       });
@@ -175,7 +184,7 @@ window.DataStore = (function() {
       }]
     };
     _data.leads.push(newLead);
-    save();
+    saveLeadDoc(newLead);
     return newLead;
   }
 
@@ -185,8 +194,7 @@ window.DataStore = (function() {
 
     const lead = _data.leads[leadIndex];
     const now = new Date().toISOString();
-    
-    // Check for changes and add to changelog
+
     for (const key in data) {
       if (key === 'attendantIds') {
         const oldIds = lead.attendantIds || [];
@@ -215,13 +223,13 @@ window.DataStore = (function() {
     }
 
     _data.leads[leadIndex] = { ...lead, ...data, lastUpdate: now };
-    save();
+    saveLeadDoc(_data.leads[leadIndex]);
     return _data.leads[leadIndex];
   }
 
   function deleteLead(id) {
     _data.leads = _data.leads.filter(l => l.id !== id);
-    save();
+    deleteLeadDoc(id);
   }
 
   function updateLeadStage(id, newStage) {
@@ -237,7 +245,7 @@ window.DataStore = (function() {
     updateLead(id, { funnelStage: newStage, academicStatus: newStatus });
   }
 
-  // --- Interactions ---
+  // --- Interactions ------------------------------------------------------------
 
   function addInteraction(leadId, data) {
     const lead = getLead(leadId);
@@ -252,9 +260,9 @@ window.DataStore = (function() {
     };
 
     if (!lead.interactions) lead.interactions = [];
-    lead.interactions.unshift(interaction); // add to top
+    lead.interactions.unshift(interaction);
     lead.lastUpdate = now;
-    save();
+    saveLeadDoc(lead);
     return interaction;
   }
 
@@ -263,19 +271,16 @@ window.DataStore = (function() {
     return lead ? (lead.interactions || []) : [];
   }
 
-  // --- Contracts & Documents ---
+  // --- Contracts & Documents ---------------------------------------------------
 
   function addContract(leadId, data) {
     const lead = getLead(leadId);
     if (!lead) return;
-    
+
     if (!lead.contracts) lead.contracts = [];
-    const contract = {
-      ...data,
-      id: Utils.generateId()
-    };
+    const contract = { ...data, id: Utils.generateId() };
     lead.contracts.push(contract);
-    save();
+    saveLeadDoc(lead);
     return contract;
   }
 
@@ -285,7 +290,7 @@ window.DataStore = (function() {
     const idx = lead.contracts.findIndex(c => c.id === contractId);
     if (idx !== -1) {
       lead.contracts[idx] = { ...lead.contracts[idx], ...data };
-      save();
+      saveLeadDoc(lead);
     }
   }
 
@@ -293,18 +298,14 @@ window.DataStore = (function() {
     const lead = getLead(leadId);
     if (!lead) return;
     if (!lead.documents) lead.documents = [];
-    
-    const doc = {
-      ...data,
-      id: Utils.generateId(),
-      uploadDate: new Date().toISOString()
-    };
+
+    const doc = { ...data, id: Utils.generateId(), uploadDate: new Date().toISOString() };
     lead.documents.push(doc);
-    save();
+    saveLeadDoc(lead);
     return doc;
   }
 
-  // --- Users CRUD ---
+  // --- Users CRUD --------------------------------------------------------------
 
   function getUsers() {
     return _data.users;
@@ -314,16 +315,19 @@ window.DataStore = (function() {
     return _data.users.find(u => u.id === id);
   }
 
+  // addUser aceita um id opcional (usado para casar com o UID do Firebase Auth).
   function addUser(data) {
     const newUser = {
       ...data,
-      id: Utils.generateId(),
+      id: data.id || Utils.generateId(),
       avatar: Utils.getInitials(data.name),
       status: data.status || 'pending',
       active: data.active !== undefined ? data.active : true
     };
+    // Não persistimos a senha em texto puro: quem cuida de senha é o Firebase Auth.
+    delete newUser.password;
     _data.users.push(newUser);
-    save();
+    saveUserDoc(newUser);
     return newUser;
   }
 
@@ -331,8 +335,10 @@ window.DataStore = (function() {
     const idx = _data.users.findIndex(u => u.id === id);
     if (idx !== -1) {
       if (data.name) data.avatar = Utils.getInitials(data.name);
-      _data.users[idx] = { ..._data.users[idx], ...data };
-      save();
+      const merged = { ..._data.users[idx], ...data };
+      delete merged.password; // segurança: nunca guardar senha no Firestore
+      _data.users[idx] = merged;
+      saveUserDoc(merged);
       return _data.users[idx];
     }
   }
@@ -340,25 +346,25 @@ window.DataStore = (function() {
   function deleteUser(id) {
     if (id === _data.currentUserId) return; // Prevent self-delete
     _data.users = _data.users.filter(u => u.id !== id);
-    save();
+    deleteUserDoc(id);
   }
 
   function getCurrentUser() {
     return getUser(_data.currentUserId);
   }
 
+  // Apenas define quem está logado no cache (a sessão real é do Firebase Auth).
   function setCurrentUser(id) {
     _data.currentUserId = id;
-    save();
   }
 
-  // --- Stats and Reports ---
+  // --- Stats and Reports -------------------------------------------------------
 
   function getStats() {
     const leads = _data.leads;
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
+
     const oneWeekAgo = new Date(now);
     oneWeekAgo.setDate(now.getDate() - 7);
 
@@ -378,11 +384,10 @@ window.DataStore = (function() {
       leadsByStage: {},
       leadsByAttendant: {},
       leadsByModality: { 'Presencial': 0, 'EAD': 0, 'Semipresencial': 0 },
-      monthlyEvolution: [], // { month: 'Jan', leads: 10, enrollments: 2 }
+      monthlyEvolution: [],
       enrollmentsByCourse: {}
     };
 
-    // Initialize metrics
     Utils.ORIGINS.forEach(o => stats.leadsByOrigin[o] = 0);
     Utils.COURSES.forEach(c => {
       stats.leadsByCourse[c] = 0;
@@ -394,8 +399,7 @@ window.DataStore = (function() {
 
     leads.forEach(lead => {
       const createdDate = new Date(lead.createdAt);
-      
-      // Time based
+
       if (createdDate >= startOfMonth) stats.monthLeads++;
       if (createdDate >= oneWeekAgo) stats.weekLeads++;
 
@@ -405,7 +409,6 @@ window.DataStore = (function() {
         }
       }
 
-      // Stage based
       if (lead.funnelStage === 'Matriculado') {
         stats.enrollments++;
         if (lead.modality === 'Presencial') {
@@ -416,20 +419,18 @@ window.DataStore = (function() {
           }
         }
         if (lead.modality === 'EAD') stats.eadEnrollments++;
-        
+
         if (stats.enrollmentsByCourse[lead.course] !== undefined) {
           stats.enrollmentsByCourse[lead.course]++;
         }
       }
       if (lead.funnelStage === 'Perdido') stats.lostLeads++;
-      
-      // Contracts
+
       if (lead.contracts && lead.contracts.length > 0) {
         const pending = lead.contracts.filter(c => c.status === 'Pendente' || c.status === 'Enviado');
         stats.pendingContracts += pending.length;
       }
 
-      // Distributions
       if (stats.leadsByOrigin[lead.origin] !== undefined) stats.leadsByOrigin[lead.origin]++;
       else stats.leadsByOrigin['Outros'] = (stats.leadsByOrigin['Outros'] || 0) + 1;
 
@@ -449,7 +450,6 @@ window.DataStore = (function() {
         });
       }
 
-      // Monthly Evolution (Last 6 months)
       const monthYear = `${createdDate.getMonth() + 1}/${createdDate.getFullYear().toString().substring(2)}`;
       if (!monthlyData[monthYear]) {
         monthlyData[monthYear] = { leads: 0, enrollments: 0, time: createdDate.getTime() };
@@ -464,8 +464,7 @@ window.DataStore = (function() {
       stats.conversionRate = ((stats.enrollments / stats.totalLeads) * 100).toFixed(1);
     }
 
-    // Sort monthly data chronologically and take last 6
-    const sortedMonths = Object.keys(monthlyData).sort((a,b) => monthlyData[a].time - monthlyData[b].time);
+    const sortedMonths = Object.keys(monthlyData).sort((a, b) => monthlyData[a].time - monthlyData[b].time);
     stats.monthlyEvolution = sortedMonths.slice(-6).map(key => ({
       month: key,
       leads: monthlyData[key].leads,
@@ -490,11 +489,11 @@ window.DataStore = (function() {
   function importLeads(leadsArray) {
     let count = 0;
     const now = new Date().toISOString();
-    
+    const created = [];
+
     leadsArray.forEach(data => {
-      // Basic validation
       if (!data.name) return;
-      
+
       const newLead = {
         name: data.name,
         cpf: data.cpf || '',
@@ -519,6 +518,7 @@ window.DataStore = (function() {
         id: Utils.generateId(),
         createdAt: now,
         lastUpdate: now,
+        attendantIds: [],
         interactions: [],
         contracts: [],
         documents: [],
@@ -531,12 +531,22 @@ window.DataStore = (function() {
           timestamp: now
         }]
       };
-      
+
       _data.leads.push(newLead);
+      created.push(newLead);
       count++;
     });
-    
-    save();
+
+    // Grava em lotes (batch) de até 500 — bem mais rápido/barato que 1 a 1.
+    if (db() && created.length) {
+      for (let i = 0; i < created.length; i += 450) {
+        const slice = created.slice(i, i + 450);
+        const batch = db().batch();
+        slice.forEach(l => batch.set(db().collection('leads').doc(l.id), l));
+        batch.commit().catch(e => console.error('Erro ao importar leads (batch):', e));
+      }
+    }
+
     return count;
   }
 
@@ -572,7 +582,7 @@ window.DataStore = (function() {
     });
   }
 
-  // --- Funnel Stages CRUD ---
+  // --- Funnel Stages CRUD ------------------------------------------------------
 
   function getFunnelStages() {
     if (!_data.funnelStages || !Array.isArray(_data.funnelStages)) {
@@ -585,17 +595,16 @@ window.DataStore = (function() {
     if (!_data.funnelStages) _data.funnelStages = [...Utils.FUNNEL_STAGES];
     if (_data.funnelStages.includes(name)) return false;
     _data.funnelStages.push(name);
-    save();
+    saveSettings();
     return true;
   }
 
   function removeFunnelStage(name) {
     if (!_data.funnelStages) return false;
-    // Check if any leads are in this stage
     const leadsInStage = _data.leads.filter(l => l.funnelStage === name);
     if (leadsInStage.length > 0) return { error: 'HAS_LEADS', count: leadsInStage.length };
     _data.funnelStages = _data.funnelStages.filter(s => s !== name);
-    save();
+    saveSettings();
     return true;
   }
 
@@ -605,20 +614,22 @@ window.DataStore = (function() {
     if (idx === -1) return false;
     if (_data.funnelStages.includes(newName)) return false;
     _data.funnelStages[idx] = newName;
-    // Also update all leads that are in this stage
     _data.leads.forEach(l => {
-      if (l.funnelStage === oldName) l.funnelStage = newName;
+      if (l.funnelStage === oldName) {
+        l.funnelStage = newName;
+        saveLeadDoc(l);
+      }
     });
-    save();
+    saveSettings();
     return true;
   }
 
   function reorderFunnelStages(newOrder) {
     _data.funnelStages = newOrder;
-    save();
+    saveSettings();
   }
 
-  // --- Semesters CRUD ---
+  // --- Semesters CRUD ----------------------------------------------------------
 
   function getSemesters() {
     return _data.semesters || [...Utils.SEMESTERS];
@@ -628,17 +639,17 @@ window.DataStore = (function() {
     if (!_data.semesters) _data.semesters = [...Utils.SEMESTERS];
     if (!_data.semesters.includes(name)) {
       _data.semesters.push(name);
-      save();
+      saveSettings();
     }
   }
 
   function deleteSemester(name) {
     if (!_data.semesters) _data.semesters = [...Utils.SEMESTERS];
     _data.semesters = _data.semesters.filter(s => s !== name);
-    save();
+    saveSettings();
   }
 
-  // --- Events CRUD ---
+  // --- Events CRUD -------------------------------------------------------------
 
   function getEvents() {
     return _data.events || [];
@@ -649,16 +660,16 @@ window.DataStore = (function() {
     const newEvent = {
       id: Utils.generateId(),
       title: eventData.title,
-      dateText: eventData.dateText, // Ex: '27 a 30/07'
-      exactDate: eventData.exactDate, // Ex: '2026-07-27'
+      dateText: eventData.dateText,
+      exactDate: eventData.exactDate,
       location: eventData.location || '',
       description: eventData.description || '',
-      status: eventData.status || 'Pendente', // 'Pendente' ou 'Realizado'
+      status: eventData.status || 'Pendente',
       ownerId: eventData.ownerId || _data.currentUserId,
       createdAt: new Date().toISOString()
     };
     _data.events.push(newEvent);
-    save();
+    saveEventDoc(newEvent);
     return newEvent;
   }
 
@@ -667,7 +678,7 @@ window.DataStore = (function() {
     const index = _data.events.findIndex(e => e.id === id);
     if (index > -1) {
       _data.events[index] = { ..._data.events[index], ...eventData };
-      save();
+      saveEventDoc(_data.events[index]);
       return _data.events[index];
     }
     return null;
@@ -676,12 +687,11 @@ window.DataStore = (function() {
   function deleteEvent(id) {
     if (!_data.events) return;
     _data.events = _data.events.filter(e => e.id !== id);
-    save();
+    deleteEventDoc(id);
   }
 
   return {
     init,
-    save,
     getLeads,
     getLead,
     addLead,

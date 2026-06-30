@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// Regras de segurança do Firestore — CRM UniFadap
+//
+// Princípios:
+// - Só usuários AUTENTICADOS e APROVADOS leem/escrevem os dados (leads, eventos, settings).
+// - No cadastro, a pessoa cria o PRÓPRIO documento em /users já com status "pending"
+//   (não consegue se auto-aprovar nem virar admin sozinha).
+// - Só ADMIN aprova/edita/exclui outros usuários.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Funções auxiliares ----
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function myUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isApproved() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myUserDoc().status == 'approved';
+    }
+
+    function isAdmin() {
+      return isApproved() && myUserDoc().role == 'Administrador';
+    }
+
+    // ---- Coleção de usuários ----
+    match /users/{userId} {
+      // O usuário sempre pode ler o PRÓPRIO doc (necessário para o app checar
+      // se ele já foi aprovado, mesmo enquanto pendente).
+      allow read: if isSignedIn() && request.auth.uid == userId;
+
+      // Usuários aprovados podem ver a lista de usuários (a tela de equipe usa isso).
+      allow read: if isApproved();
+
+      // Cadastro: a pessoa só pode criar o PRÓPRIO doc, e obrigatoriamente
+      // como "pending" (jamais já aprovado ou como admin).
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.status == 'pending';
+
+      // Bootstrap do admin: a conta-semente da Ana Lauren pode criar o próprio
+      // doc já aprovado/admin (só este e-mail específico). Resolve o "primeiro
+      // admin" sem precisar de console nem enfraquecer o resto das regras.
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.email == 'lauren.bidoia@fadap.br';
+
+      // Admin pode criar/editar/excluir qualquer usuário (aprovar, mudar role, etc.).
+      allow create, update, delete: if isAdmin();
+
+      // O próprio usuário pode atualizar seus dados, MAS não pode mexer em
+      // status nem em role (impede auto-aprovação / auto-promoção).
+      allow update: if isApproved()
+        && request.auth.uid == userId
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.role == resource.data.role;
+    }
+
+    // ---- Dados do CRM: só usuários aprovados ----
+    match /leads/{id} {
+      allow read, write: if isApproved();
+    }
+
+    match /events/{id} {
+      allow read, write: if isApproved();
+    }
+
+    // Configurações globais (fases do funil, semestres). O app permite que
+    // usuários aprovados editem o funil/semestres, então liberamos a escrita
+    // para qualquer aprovado (a leitura idem).
+    match /settings/{id} {
+      allow read, write: if isApproved();
+    }
+  }
+}
