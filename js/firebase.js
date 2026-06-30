@@ -24,10 +24,27 @@
   // deslogar quem está usando o sistema (ex.: o admin criando um colaborador).
   const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary');
 
+  const db = firebase.firestore();
+
+  // Camada 1 da otimização de leitura: cache de disco (IndexedDB) do Firestore.
+  // synchronizeTabs:true permite o cache funcionar com várias abas abertas.
+  // Falha de forma silenciosa em navegadores sem suporte (modo anônimo, etc.) —
+  // nesse caso o app continua funcionando, só sem o cache persistente.
+  db.enablePersistence({ synchronizeTabs: true })
+    .catch(err => {
+      if (err && err.code === 'failed-precondition') {
+        console.warn('Persistência: múltiplas abas sem suporte a sync — cache limitado a uma aba.');
+      } else if (err && err.code === 'unimplemented') {
+        console.warn('Persistência não suportada neste navegador — seguindo sem cache de disco.');
+      } else {
+        console.warn('Persistência indisponível:', err && err.code);
+      }
+    });
+
   window.FB = {
     app,
     auth: firebase.auth(),
-    db: firebase.firestore(),
+    db,
     // Auth + Firestore da instância secundária. Usados para criar contas:
     // após o createUser, a instância secundária fica logada como o novo usuário,
     // então o secondaryDb grava o doc /users/{uid} já autenticado como ele

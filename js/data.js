@@ -18,18 +18,32 @@ window.DataStore = (function() {
 
   function db() { return window.FB && window.FB.db; }
 
+  // Regrava só o CONTEÚDO do cache local de leads a partir do estado em memória.
+  // NÃO avança o timestamp de sync de propósito: assim o próximo boot ainda
+  // reconfere mudanças de outras pessoas a partir do último ponto seguro,
+  // evitando perder edições alheias feitas no mesmo intervalo.
+  function syncCacheFromData() {
+    try {
+      localStorage.setItem('unifadap_leads_cache_v1', JSON.stringify(_data.leads));
+    } catch (e) {
+      // localStorage cheio ou indisponível: ignora (não quebra o app).
+    }
+  }
+
   // --- Persistência por documento (Firestore) ---------------------------------
 
   function saveLeadDoc(lead) {
     if (!db() || !lead) return;
     db().collection('leads').doc(lead.id).set(lead)
       .catch(e => console.error('Erro ao salvar lead no Firestore:', e));
+    syncCacheFromData(); // mantém o cache local em dia com as escritas
   }
 
   function deleteLeadDoc(id) {
     if (!db()) return;
     db().collection('leads').doc(id).delete()
       .catch(e => console.error('Erro ao excluir lead no Firestore:', e));
+    syncCacheFromData();
   }
 
   function saveUserDoc(user) {
@@ -67,20 +81,78 @@ window.DataStore = (function() {
 
   // --- Carregamento inicial ----------------------------------------------------
 
+  // --- Cache local de leads (Camada 2 da otimização: delta-sync) ---------------
+  // Guarda os leads no localStorage com o timestamp da última sincronização.
+  // No boot, em vez de baixar TODOS os leads, baixamos só os que mudaram desde
+  // a última vez (where lastUpdate > últimaSync). Uma vez por dia fazemos um
+  // sync COMPLETO para capturar deleções (que o delta não detecta).
+  const LEADS_CACHE_KEY = 'unifadap_leads_cache_v1';
+  const LEADS_SYNC_KEY = 'unifadap_leads_sync_v1';   // ISO da última sincronização
+  const FULL_SYNC_KEY = 'unifadap_leads_fullsync_v1'; // data (YYYY-MM-DD) do último sync completo
+
+  function loadLeadsCache() {
+    try {
+      const raw = localStorage.getItem(LEADS_CACHE_KEY);
+      const arr = raw ? JSON.parse(raw) : null;
+      return Array.isArray(arr) ? arr : null;
+    } catch (e) { return null; }
+  }
+
+  function saveLeadsCache(leads, lastSyncIso) {
+    try {
+      localStorage.setItem(LEADS_CACHE_KEY, JSON.stringify(leads));
+      if (lastSyncIso) localStorage.setItem(LEADS_SYNC_KEY, lastSyncIso);
+    } catch (e) {
+      // localStorage cheio: segue sem cache persistente (não quebra o app).
+      console.warn('Não foi possível salvar o cache de leads:', e && e.name);
+    }
+  }
+
+  // Carrega leads usando delta-sync. Retorna o array de leads pronto.
+  async function loadLeadsSmart() {
+    const today = new Date().toISOString().split('T')[0];
+    const lastFullSync = localStorage.getItem(FULL_SYNC_KEY);
+    const cached = loadLeadsCache();
+    const lastSync = localStorage.getItem(LEADS_SYNC_KEY);
+
+    // Sync COMPLETO se: sem cache, ou ainda não sincronizou tudo hoje.
+    const needFullSync = !cached || !lastSync || lastFullSync !== today;
+
+    if (needFullSync) {
+      const snap = await db().collection('leads').get();
+      const leads = snap.docs.map(d => d.data());
+      const nowIso = new Date().toISOString();
+      saveLeadsCache(leads, nowIso);
+      localStorage.setItem(FULL_SYNC_KEY, today);
+      return leads;
+    }
+
+    // Delta: baixa só o que mudou desde a última sincronização.
+    const snap = await db().collection('leads').where('lastUpdate', '>', lastSync).get();
+    const changed = snap.docs.map(d => d.data());
+    const byId = {};
+    cached.forEach(l => { byId[l.id] = l; });
+    changed.forEach(l => { byId[l.id] = l; }); // novos/editados sobrescrevem
+    const merged = Object.values(byId);
+    saveLeadsCache(merged, new Date().toISOString());
+    return merged;
+  }
+
   async function init() {
     if (!db()) {
       throw new Error('Firestore não inicializado (window.FB.db ausente).');
     }
 
-    // Carrega todas as coleções em paralelo.
-    const [leadsSnap, usersSnap, eventsSnap, settingsSnap] = await Promise.all([
-      db().collection('leads').get(),
+    // Leads via delta-sync (Camada 2). Demais coleções são pequenas (usuários,
+    // eventos, settings) -> carga completa, custo desprezível.
+    const [leads, usersSnap, eventsSnap, settingsSnap] = await Promise.all([
+      loadLeadsSmart(),
       db().collection('users').get(),
       db().collection('events').get(),
       db().collection('settings').doc('global').get()
     ]);
 
-    _data.leads = leadsSnap.docs.map(d => d.data());
+    _data.leads = leads;
     _data.users = usersSnap.docs.map(d => d.data());
     _data.events = eventsSnap.docs.map(d => d.data());
 
@@ -545,6 +617,7 @@ window.DataStore = (function() {
         slice.forEach(l => batch.set(db().collection('leads').doc(l.id), l));
         batch.commit().catch(e => console.error('Erro ao importar leads (batch):', e));
       }
+      syncCacheFromData(); // atualiza o cache local com os importados
     }
 
     return count;
