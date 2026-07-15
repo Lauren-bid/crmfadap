@@ -24,17 +24,19 @@ window.ImportExportPage = (function() {
             <div style="margin-bottom: var(--spacing-4);">
               <p class="text-sm text-secondary mb-4">Faça upload de uma planilha do Excel (.xlsx) ou arquivo CSV para importar novos leads. O sistema tentará mapear as colunas automaticamente.</p>
               
-              <div class="form-group">
+              <div class="form-group" style="margin-bottom: 1rem;">
                 <input type="file" id="import-file" accept=".xlsx,.csv" class="form-input" style="padding: 6px;">
               </div>
+              <button class="btn btn-primary w-full" id="import-btn">
+                <i data-lucide="upload"></i> Importar Planilha
+              </button>
             </div>
 
             <div id="import-preview-container" class="hidden">
-              <h4 class="mb-2">Preview dos Dados (Primeiras 5 linhas)</h4>
+              <h4 class="mb-2">Leads Importados (Preview)</h4>
               <div id="import-table-wrapper" style="margin-bottom: var(--spacing-4); border: 1px solid var(--border-light); border-radius: var(--radius-sm); overflow-x: auto;">
                 <!-- Preview table generated here -->
               </div>
-              <button class="btn btn-primary w-full" id="import-btn">Importar <span id="import-count"></span> Leads</button>
             </div>
           </div>
 
@@ -84,11 +86,6 @@ window.ImportExportPage = (function() {
 
   function init() {
     // Import Logic
-    const fileInput = document.getElementById('import-file');
-    if (fileInput) {
-      fileInput.addEventListener('change', handleFileUpload);
-    }
-
     const importBtn = document.getElementById('import-btn');
     if (importBtn) {
       importBtn.addEventListener('click', executeImport);
@@ -100,23 +97,32 @@ window.ImportExportPage = (function() {
     document.getElementById('export-pdf-btn').addEventListener('click', () => exportData('pdf'));
   }
 
-  function handleFileUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+  function executeImport() {
+    const fileInput = document.getElementById('import-file');
+    const file = fileInput.files ? fileInput.files[0] : null;
+    if (!file) {
+      Toast.error('Por favor, selecione um arquivo de planilha primeiro.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = function(e) {
-      const data = new Uint8Array(e.target.result);
-      const workbook = window.XLSX.read(data, {type: 'array'});
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      
-      const json = window.XLSX.utils.sheet_to_json(worksheet, {header: 1}); // Array of arrays
-      
-      if (json.length > 1) {
-        processExcelData(json);
-      } else {
-        Toast.error('A planilha parece estar vazia ou em formato incorreto.');
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = window.XLSX.read(data, {type: 'array'});
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        const json = window.XLSX.utils.sheet_to_json(worksheet, {header: 1}); // Array of arrays
+        
+        if (json.length > 1) {
+          processExcelData(json);
+        } else {
+          Toast.error('A planilha parece estar vazia ou em formato incorreto.');
+        }
+      } catch (err) {
+        console.error("Erro ao ler a planilha:", err);
+        Toast.error('Erro ao ler a planilha. O arquivo pode estar corrompido ou num formato não suportado.');
       }
     };
     reader.readAsArrayBuffer(file);
@@ -145,7 +151,7 @@ window.ImportExportPage = (function() {
     };
 
     if (map.name === -1) {
-      Toast.error('Não foi possível encontrar uma coluna de "Nome" na planilha.');
+      Toast.error('Não foi possível encontrar a coluna "NOME" na primeira linha da planilha.');
       return;
     }
 
@@ -179,10 +185,18 @@ window.ImportExportPage = (function() {
       if (previewRows.length < 5) previewRows.push(lead);
     }
 
+    if (importedData.length === 0) {
+      Toast.warning('Nenhum dado válido encontrado para importar.');
+      return;
+    }
+
+    // Execute import to datastore
+    DataStore.importLeads(importedData);
+    Toast.success(`${importedData.length} leads importados com sucesso!`);
+
     // Render Preview
     const previewContainer = document.getElementById('import-preview-container');
     const tableWrapper = document.getElementById('import-table-wrapper');
-    const countSpan = document.getElementById('import-count');
 
     let tableHtml = '<table style="width: 100%; white-space: nowrap; font-size: 0.75rem;"><thead><tr>';
     tableHtml += '<th>Nome</th><th>Telefone</th><th>E-mail</th><th>Curso</th>';
@@ -199,20 +213,10 @@ window.ImportExportPage = (function() {
     tableHtml += '</tbody></table>';
 
     tableWrapper.innerHTML = tableHtml;
-    countSpan.innerText = importedData.length;
     previewContainer.classList.remove('hidden');
-    Toast.info(`Planilha lida com sucesso: ${importedData.length} leads encontrados.`);
-  }
-
-  function executeImport() {
-    if (importedData.length === 0) return;
     
-    DataStore.importLeads(importedData);
-    Toast.success(`${importedData.length} leads importados com sucesso!`);
-    
-    // Reset
+    // Reset inputs
     document.getElementById('import-file').value = '';
-    document.getElementById('import-preview-container').classList.add('hidden');
     importedData = [];
   }
 
