@@ -27,9 +27,6 @@ window.ImportExportPage = (function() {
               <div class="form-group" style="margin-bottom: 1rem;">
                 <input type="file" id="import-file" accept=".xlsx,.csv" class="form-input" style="padding: 6px;">
               </div>
-              <button class="btn btn-primary w-full" id="import-btn">
-                <i data-lucide="upload"></i> Importar Planilha
-              </button>
             </div>
 
             <div id="import-preview-container" class="hidden">
@@ -37,6 +34,9 @@ window.ImportExportPage = (function() {
               <div id="import-table-wrapper" style="margin-bottom: var(--spacing-4); border: 1px solid var(--border-light); border-radius: var(--radius-sm); overflow-x: auto;">
                 <!-- Preview table generated here -->
               </div>
+              <button class="btn btn-primary w-full mt-4" id="import-btn" style="margin-top: 1rem;">
+                <i data-lucide="upload"></i> Importar
+              </button>
             </div>
           </div>
 
@@ -86,6 +86,13 @@ window.ImportExportPage = (function() {
 
   function init() {
     // Import Logic
+    const fileInput = document.getElementById('import-file');
+    if (fileInput) {
+      // Clear value on click so 'change' fires even if selecting the same file
+      fileInput.addEventListener('click', (e) => e.target.value = null);
+      fileInput.addEventListener('change', handleFileUpload);
+    }
+
     const importBtn = document.getElementById('import-btn');
     if (importBtn) {
       importBtn.addEventListener('click', executeImport);
@@ -97,13 +104,9 @@ window.ImportExportPage = (function() {
     document.getElementById('export-pdf-btn').addEventListener('click', () => exportData('pdf'));
   }
 
-  function executeImport() {
-    const fileInput = document.getElementById('import-file');
-    const file = fileInput.files ? fileInput.files[0] : null;
-    if (!file) {
-      Toast.error('Por favor, selecione um arquivo de planilha primeiro.');
-      return;
-    }
+  function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -190,10 +193,6 @@ window.ImportExportPage = (function() {
       return;
     }
 
-    // Execute import to datastore
-    DataStore.importLeads(importedData);
-    Toast.success(`${importedData.length} leads importados com sucesso!`);
-
     // Render Preview
     const previewContainer = document.getElementById('import-preview-container');
     const tableWrapper = document.getElementById('import-table-wrapper');
@@ -214,9 +213,19 @@ window.ImportExportPage = (function() {
 
     tableWrapper.innerHTML = tableHtml;
     previewContainer.classList.remove('hidden');
+    Toast.info(`Planilha lida com sucesso: ${importedData.length} leads encontrados.`);
+  }
+
+  function executeImport() {
+    if (importedData.length === 0) return;
+    
+    // Execute import to datastore
+    DataStore.importLeads(importedData);
+    Toast.success(`${importedData.length} leads importados com sucesso!`);
     
     // Reset inputs
     document.getElementById('import-file').value = '';
+    document.getElementById('import-preview-container').classList.add('hidden');
     importedData = [];
   }
 
