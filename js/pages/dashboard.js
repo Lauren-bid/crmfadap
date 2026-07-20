@@ -135,18 +135,20 @@ window.DashboardPage = (function() {
     const section = document.getElementById('goals-section');
     if (!section) return;
 
+    const goals = DataStore.getEnrollmentGoals();
+
     // Presencial (Calouros)
-    const pGoal = Utils.ENROLLMENT_GOALS.presencial.total;
+    const pGoal = goals.presencial.total;
     const pAct = stats.presencialEnrollments;
     const pFalta = Math.max(0, pGoal - pAct);
 
     // Transferencias
-    const tGoal = Utils.ENROLLMENT_GOALS.presencial_transfer.total;
+    const tGoal = goals.presencial_transfer.total;
     const tAct = stats.presencialTransfers || 0;
     const tFalta = Math.max(0, tGoal - tAct);
 
     // EAD
-    const eGoal = Utils.ENROLLMENT_GOALS.ead.total;
+    const eGoal = goals.ead.total;
     const eAct = stats.eadEnrollments;
     const eFalta = Math.max(0, eGoal - eAct);
 
@@ -238,6 +240,12 @@ window.DashboardPage = (function() {
     `;
 
     const goalsBoxesHtml = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; margin-top: 12px;">
+        <h3 style="font-size: 1.1rem; color: var(--text-main); font-weight: 600;">Metas de Matrícula</h3>
+        <button class="btn btn-secondary btn-sm" id="btn-edit-goals" style="padding: 6px 12px; font-size: 0.8rem;">
+          <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline-block;"></i> Editar Metas
+        </button>
+      </div>
       <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 24px;">
         ${renderGoalBox('META GRADUAÇÃO PRESENCIAL', pGoal, pAct, pFalta)}
         ${renderGoalBox('META GRADUAÇÃO PRESENCIAL - TRANSFERÊNCIAS', tGoal, tAct, tFalta)}
@@ -246,6 +254,13 @@ window.DashboardPage = (function() {
     `;
 
     section.innerHTML = tablesHtml + goalsBoxesHtml;
+    
+    setTimeout(() => {
+      const editBtn = document.getElementById('btn-edit-goals');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => openGoalsModal(goals));
+      }
+    }, 0);
   }
 
   function renderFunnel(stats) {
@@ -371,6 +386,54 @@ window.DashboardPage = (function() {
         }
       }));
     }
+  }
+
+  function openGoalsModal(goals) {
+    const content = `
+      <div class="form-group mb-3">
+        <label class="form-label">Meta Graduação Presencial (Calouros)</label>
+        <input type="number" class="form-input" id="goal-presencial" value="${goals.presencial.total}" min="0">
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Meta Graduação Presencial (Transferências)</label>
+        <input type="number" class="form-input" id="goal-transfer" value="${goals.presencial_transfer.total}" min="0">
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Meta Graduação EAD</label>
+        <input type="number" class="form-input" id="goal-ead" value="${goals.ead.total}" min="0">
+      </div>
+    `;
+
+    const footer = `
+      <button class="btn btn-ghost" id="modal-goals-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="modal-goals-save">Salvar Metas</button>
+    `;
+
+    window.Modal.show({
+      title: 'Editar Metas de Matrícula',
+      content: content,
+      footer: footer,
+      onClose: () => {}
+    });
+
+    document.getElementById('modal-goals-cancel').addEventListener('click', window.Modal.hide);
+    document.getElementById('modal-goals-save').addEventListener('click', () => {
+      const pVal = parseInt(document.getElementById('goal-presencial').value, 10) || 0;
+      const tVal = parseInt(document.getElementById('goal-transfer').value, 10) || 0;
+      const eVal = parseInt(document.getElementById('goal-ead').value, 10) || 0;
+
+      const newGoals = JSON.parse(JSON.stringify(goals)); // deep copy
+      newGoals.presencial.total = pVal;
+      newGoals.presencial_transfer.total = tVal;
+      newGoals.ead.total = eVal;
+
+      DataStore.setEnrollmentGoals(newGoals);
+      window.Modal.hide();
+      if (window.Toast) window.Toast.success('Metas atualizadas com sucesso!');
+      
+      // Re-render dashboard
+      init();
+    });
   }
 
   return {

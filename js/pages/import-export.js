@@ -22,7 +22,7 @@ window.ImportExportPage = (function() {
               <span class="card-title">Importar Leads</span>
             </div>
             <div style="margin-bottom: var(--spacing-4);">
-              <p class="text-sm text-secondary mb-4">Faça upload de uma planilha do Excel (.xlsx) ou arquivo CSV para importar novos leads.<br>Colunas esperadas: <strong>Nome</strong>, <strong>Telefone</strong>, <strong>Curso de Interesse</strong>.</p>
+              <p class="text-sm text-secondary mb-4">Faça upload de uma planilha do Excel (.xlsx) ou arquivo CSV para importar novos leads.<br>Colunas esperadas: <strong>Nome</strong>, <strong>Telefone</strong>, <strong>Curso de Interesse</strong>, <strong>Origem da Lead</strong>.</p>
               
               <div class="form-group" style="margin-bottom: 1rem;">
                 <input type="file" id="import-file" accept=".xlsx,.csv" class="form-input" style="padding: 6px;">
@@ -247,6 +247,7 @@ window.ImportExportPage = (function() {
       if (map.name !== -1) colsDetected.push('Nome');
       if (map.phone !== -1) colsDetected.push('Telefone');
       if (map.course !== -1) colsDetected.push('Curso');
+      if (map.origin !== -1) colsDetected.push('Origem');
       if (map.email !== -1) colsDetected.push('E-mail');
       statusEl.innerHTML = '✅ <strong>' + importedData.length + ' leads</strong> encontrados. Colunas detectadas: ' + colsDetected.join(', ') + '.';
     }
@@ -258,6 +259,7 @@ window.ImportExportPage = (function() {
     let tableHtml = '<table style="width: 100%; white-space: nowrap; font-size: 0.75rem;"><thead><tr>';
     tableHtml += '<th style="padding:6px 8px;">#</th><th style="padding:6px 8px;">Nome</th><th style="padding:6px 8px;">Telefone</th>';
     if (map.email !== -1) tableHtml += '<th style="padding:6px 8px;">E-mail</th>';
+    if (map.origin !== -1) tableHtml += '<th style="padding:6px 8px;">Origem</th>';
     tableHtml += '<th style="padding:6px 8px;">Curso (planilha)</th><th style="padding:6px 8px;">Curso (reconhecido)</th>';
     tableHtml += '</tr></thead><tbody>';
     
@@ -284,13 +286,16 @@ window.ImportExportPage = (function() {
         <td style="padding:6px 8px;"><strong>${r.name || '-'}</strong></td>
         <td style="padding:6px 8px;">${phoneFormatted}</td>`;
       if (map.email !== -1) tableHtml += `<td style="padding:6px 8px;">${r.email || '-'}</td>`;
+      if (map.origin !== -1) tableHtml += `<td style="padding:6px 8px;">${r.origin || '-'}</td>`;
       tableHtml += `<td style="padding:6px 8px; font-size: 0.7rem; color: var(--text-muted);">${r.course || '-'}</td>
         <td style="padding:6px 8px;">${courseIcon}${isCourseMatched ? matchedCourse : (r.course || '-')}</td>
       </tr>`;
     });
 
     if (importedData.length > 10) {
-      const colSpan = map.email !== -1 ? 7 : 6;
+      let colSpan = 6;
+      if (map.email !== -1) colSpan++;
+      if (map.origin !== -1) colSpan++;
       tableHtml += `<tr><td colspan="${colSpan}" style="text-align: center; color: var(--text-muted); padding: 8px;">... e mais ${importedData.length - 10} leads</td></tr>`;
     }
     tableHtml += '</tbody></table>';

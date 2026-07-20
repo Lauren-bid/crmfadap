@@ -561,6 +561,73 @@ window.DataStore = (function() {
     return Utils.ENROLLMENT_ACTUALS;
   }
 
+  // --- Correspondência inteligente de nomes de curso -------------------------
+  // Remove acentos e converte para minúsculas para comparação flexível.
+  function _normalize(str) {
+    return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
+  // Tenta casar o texto vindo da planilha com um dos cursos cadastrados.
+  // Estratégia: 1) igualdade exata, 2) igualdade normalizada (sem acento/case),
+  // 3) uma string contém a outra (match parcial), 4) fallback para o primeiro curso.
+  function matchCourse(raw) {
+    if (!raw || !raw.trim()) return '';
+    const input = raw.trim();
+
+    // 1. Igualdade exata
+    const exact = Utils.COURSES.find(c => c === input);
+    if (exact) return exact;
+
+    // 2. Igualdade normalizada (ignora acentos e case)
+    const normInput = _normalize(input);
+    const normalized = Utils.COURSES.find(c => _normalize(c) === normInput);
+    if (normalized) return normalized;
+
+    // 3. Correspondência parcial – o input contém o nome do curso ou vice-versa
+    //    Prioriza o match mais longo (mais específico).
+    let bestMatch = null;
+    let bestLen = 0;
+    for (const c of Utils.COURSES) {
+      const normC = _normalize(c);
+      if (normInput.includes(normC) || normC.includes(normInput)) {
+        if (normC.length > bestLen) {
+          bestMatch = c;
+          bestLen = normC.length;
+        }
+      }
+    }
+    if (bestMatch) return bestMatch;
+
+    // 4. Correspondência por palavras-chave (pelo menos 2 palavras em comum)
+    const inputWords = normInput.split(/\s+/).filter(w => w.length > 2);
+    let bestWordMatch = null;
+    let bestWordCount = 0;
+    for (const c of Utils.COURSES) {
+      const courseWords = _normalize(c).split(/\s+/).filter(w => w.length > 2);
+      const commonWords = inputWords.filter(w => courseWords.some(cw => cw.includes(w) || w.includes(cw)));
+      if (commonWords.length > bestWordCount) {
+        bestWordCount = commonWords.length;
+        bestWordMatch = c;
+      }
+    }
+    if (bestWordCount >= 1 && bestWordMatch) return bestWordMatch;
+
+    // Não encontrou nenhuma correspondência — retorna o texto original
+    // para que o usuário veja no preview o que foi lido da planilha.
+    return input;
+  }
+
+  // Normaliza telefone: garante que é string e formata se necessário.
+  function _normalizePhone(val) {
+    if (val === undefined || val === null) return '';
+    let str = String(val).trim();
+    // Remove formatação existente para manter apenas dígitos
+    str = str.replace(/\D/g, '');
+    // Se veio com código do país (55), remove
+    if (str.length === 13 && str.startsWith('55')) str = str.substring(2);
+    return str;
+  }
+
   function importLeads(leadsArray) {
     let count = 0;
     const now = new Date().toISOString();
@@ -569,30 +636,27 @@ window.DataStore = (function() {
     leadsArray.forEach(data => {
       if (!data.name) return;
 
-      const findMatch = (val, arr, def) => {
-        if (!val) return def;
-        const match = arr.find(x => x.toLowerCase() === String(val).toLowerCase().trim());
-        return match || def;
-      };
+      const matchedCourse = matchCourse(data.course);
+      const phone = _normalizePhone(data.phone);
 
       const newLead = {
         name: data.name,
         cpf: data.cpf || '',
         rg: data.rg || '',
         birthDate: data.birthDate || '',
-        phone: data.phone || '',
-        whatsapp: data.whatsapp || '',
+        phone: phone,
+        whatsapp: data.whatsapp || phone,
         email: data.email || '',
         city: data.city || '',
         state: data.state || 'SP',
-        origin: findMatch(data.origin, Utils.ORIGINS, 'Outros'),
-        course: findMatch(data.course, Utils.COURSES, Utils.COURSES[0]),
-        modality: findMatch(data.modality, Utils.MODALITIES, 'Presencial'),
-        semester: findMatch(data.semester, Utils.SEMESTERS, Utils.SEMESTERS[0]),
-        academicStatus: findMatch(data.academicStatus, Utils.ACADEMIC_STATUSES, 'Interessado'),
-        funnelStage: findMatch(data.funnelStage, getFunnelStages(), 'Novo Lead'),
-        status1: findMatch(data.status1, Utils.STATUS_1, ''),
-        status2: findMatch(data.status2, Utils.STATUS_2, ''),
+        origin: Utils.ORIGINS.includes(data.origin) ? data.origin : 'Outros',
+        course: Utils.COURSES.includes(matchedCourse) ? matchedCourse : (matchedCourse || Utils.COURSES[0]),
+        modality: Utils.MODALITIES.includes(data.modality) ? data.modality : 'Presencial',
+        semester: Utils.SEMESTERS.includes(data.semester) ? data.semester : Utils.SEMESTERS[0],
+        academicStatus: Utils.ACADEMIC_STATUSES.includes(data.academicStatus) ? data.academicStatus : 'Interessado',
+        funnelStage: getFunnelStages().includes(data.funnelStage) ? data.funnelStage : 'Novo Lead',
+        status1: Utils.STATUS_1.includes(data.status1) ? data.status1 : '',
+        status2: Utils.STATUS_2.includes(data.status2) ? data.status2 : '',
         observation: data.observation || '',
         contactDate: data.contactDate || '',
         baseName: data.baseName || '',
@@ -797,6 +861,7 @@ window.DataStore = (function() {
     getMktInvestment,
     getEnrollmentActuals,
     importLeads,
+    _matchCourse: matchCourse,
     searchLeads,
     exportLeadsData,
     getFunnelStages,

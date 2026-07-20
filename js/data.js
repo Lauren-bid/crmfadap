@@ -550,7 +550,17 @@ window.DataStore = (function() {
   }
 
   function getEnrollmentGoals() {
+    const stored = localStorage.getItem('crm_enrollment_goals');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch(e) { }
+    }
     return Utils.ENROLLMENT_GOALS;
+  }
+
+  function setEnrollmentGoals(goals) {
+    localStorage.setItem('crm_enrollment_goals', JSON.stringify(goals));
   }
 
   function getMktInvestment() {
@@ -639,6 +649,23 @@ window.DataStore = (function() {
       const matchedCourse = matchCourse(data.course);
       const phone = _normalizePhone(data.phone);
 
+      let matchedOrigin = 'Outros';
+      if (data.origin) {
+        const lowerOrigin = String(data.origin).toLowerCase().trim();
+        const exactMatch = Utils.ORIGINS.find(o => String(o).toLowerCase() === lowerOrigin);
+        if (exactMatch) {
+          matchedOrigin = exactMatch;
+        } else {
+          const fuzzyMatch = Utils.ORIGINS.find(o => String(o).toLowerCase().includes(lowerOrigin) || lowerOrigin.includes(String(o).toLowerCase()));
+          if (fuzzyMatch) {
+            matchedOrigin = fuzzyMatch;
+          } else {
+            // Se não encontrou nas opções, salva exatamente o que veio para não perder a informação
+            matchedOrigin = String(data.origin).trim();
+          }
+        }
+      }
+
       const newLead = {
         name: data.name,
         cpf: data.cpf || '',
@@ -649,7 +676,7 @@ window.DataStore = (function() {
         email: data.email || '',
         city: data.city || '',
         state: data.state || 'SP',
-        origin: Utils.ORIGINS.includes(data.origin) ? data.origin : 'Outros',
+        origin: matchedOrigin,
         course: Utils.COURSES.includes(matchedCourse) ? matchedCourse : (matchedCourse || Utils.COURSES[0]),
         modality: Utils.MODALITIES.includes(data.modality) ? data.modality : 'Presencial',
         semester: Utils.SEMESTERS.includes(data.semester) ? data.semester : Utils.SEMESTERS[0],
@@ -858,6 +885,7 @@ window.DataStore = (function() {
     setCurrentUser,
     getStats,
     getEnrollmentGoals,
+    setEnrollmentGoals,
     getMktInvestment,
     getEnrollmentActuals,
     importLeads,
